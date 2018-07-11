@@ -10,6 +10,8 @@ sys.path.insert(0,'/home/snieblin/work/libspec')
 sys.path.insert(0,'/home/snieblin/work/')
 import libspec
 import scipy.signal as ssi
+import opusFC as ofc
+from scipy.optimize import curve_fit
 
 def mult_gauss(x, *params):
     '''
@@ -153,3 +155,110 @@ def plot_spec(ax, x, spec, which_int='raman_parpar', color='blue'):
             ax.annotate("{:.0f}".format(x_max),xy=(x_max,y_max),ha='center')
     ax.plot(x, np.sum(spec, axis=1), color='blue')
     return None
+
+def process_bruker(fn):
+    '''
+    This is a function that reads in a opus file 
+    and returns an array with these columns
+    x-values y-raw y-smooth y-bl y-bl-corrected
+    '''
+    
+    # Fixed values, will be put as function argument later
+    # Spectral boundaries
+    spec_lim = [2100, 2200]
+    # Boundaries for peak
+    peak_lim = [2145, 2175]
+    # Parameters for fit
+    p_order = 6
+    # Savitzky-Golay smoothing parameters
+    sg_window = 13
+    sg_poly = 2
+    # Function for fit
+    func = mult_gauss
+    # Fit guess
+    guess = [2155, 0.2, 5, 2165, 1, 5]
+    
+    # Load data
+    dbs = ofc.listContents(fn)
+    data = {}
+    for db in dbs:
+        data[str(db[0])] = ofc.getOpusData(fn, db)
+    print(data.keys())
+
+    # Chose AB as spectrum
+    spec_full = np.vstack((data['AB'].x, data['AB'].y)).T
+    # Convert to mOD
+    spec_full[:,1] = spec_full[:,1]*1000
+
+    # Extract data between these boundaries
+    limits = spec_lim
+    pos = [np.argmin(np.abs(spec_full[:,0] - limits[0])), np.argmin(np.abs(spec_full[:,0] - limits[1]))]
+    # Sort it
+    pos = np.sort(pos)
+    # x values
+    x_val = np.array(spec_full[pos[0]:pos[1], 0]).transpose()
+    # Only take these
+    spec_raw = np.array(spec_full[pos[0]:pos[1], 1]).transpose()
+    # Smooth it
+    spec_smooth = np.array(ssi.savgol_filter(spec_full[pos[0]:pos[1], 1], sg_window, sg_poly)).transpose()
+    #spec = spec_raw
+
+    # Calculate weighting matrix
+    # peak_freq = 2123
+    # peak_width = 30
+    # peak_range = [peak_freq-peak_width, peak_freq + peak_width]
+    # Or define range
+    peak_range = peak_lim
+    peak_pos = [np.argmin(np.abs(x_val - peak_range[0])), np.argmin(np.abs(x_val - peak_range[1]))]
+    peak_pos = np.sort(peak_pos)
+    min_pos = np.argmin(np.abs(spec_smooth - np.min(spec_smooth)))
+    w_vector = np.ones(len(spec_smooth))
+    w_vector[peak_pos[0]: peak_pos[1]] = 0
+    w_vector[min_pos] = 100
+
+    # # Additional position; only for testing purpose!
+    # # Remove later
+    # add_pos = 2075
+    # add_pos = np.argmin(np.abs(spec[:,0] - add_pos))
+    # w_vector[add_pos] = 100
+    # print "With additional position! Remove later!"
+
+    # Polynomial fit
+    p = np.polyfit(x_val, spec_smooth, p_order, w = w_vector)
+    bl = np.polyval(p, x_val).transpose()
+    bl_corrected = np.array(spec_smooth - bl).transpose()
+    # Determine minimum of the difference in peak_limits
+    yshift = np.min(bl_corrected)
+    # Shift the processed spectrum by yshift
+    #bl_corrected = bl_corrected# - yshift
+
+    # Cut out part for gaussian fit
+    limits = spec_lim #peak_lim #[2145, 2180] #spec_lim #[2140, 2180] #spec_lim
+    pos = [np.argmin(np.abs(x_val - limits[0])), np.argmin(np.abs(x_val - limits[1]))]
+    # Sort it
+    pos = np.sort(pos)
+    #import pdb; pdb.set_trace()
+    # Only take these
+    spec_part = np.array([x_val[pos[0]:pos[1]], bl_corrected[pos[0]:pos[1]]]).transpose()
+    # Gaussian fit
+    popt, pcov = curve_fit(func, spec_part[:,0], spec_part[:,1] + yshift, p0=guess, maxfev=10000)
+    fit = func(x_val, *popt)   
+    # Get single gaussians
+    sing_gauss = []
+    for i in range(len(popt)//3):
+        sing_gauss.append(func(x_val, *popt[i*3:i*3+3]))
+    sing_gauss=np.array(sing_gauss).transpose()
+    
+    # Create empty array
+    output = np.recarray((len(x_val)), 
+                      dtype=[('x', '>f4'), ('raw', '>f4'), ('smooth', '>f4'), ('bl', '>f4'), ('blcorr', '>f4'), ('fit', '>f4'), ('gauss1', '>f4'), ('gauss2', '>f4')])
+    output['x']  = x_val
+    output['raw']  = spec_raw
+    output['smooth']  = spec_smooth
+    output['bl']  = bl
+    output['blcorr']  = spec_smooth - bl
+    output['fit']  = fit
+    output['gauss1'] = sing_gauss[:,0]
+    output['gauss2'] = sing_gauss[:,1]
+    
+    return output
