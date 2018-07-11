@@ -183,7 +183,7 @@ def process_bruker(fn):
     data = {}
     for db in dbs:
         data[str(db[0])] = ofc.getOpusData(fn, db)
-    print(data.keys())
+    #print(data.keys())
 
     # Chose AB as spectrum
     spec_full = np.vstack((data['AB'].x, data['AB'].y)).T
