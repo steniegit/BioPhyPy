@@ -261,4 +261,4 @@ def process_bruker(fn):
     output['gauss1'] = sing_gauss[:,0]
     output['gauss2'] = sing_gauss[:,1]
     
-    return output
+    return output, popt
