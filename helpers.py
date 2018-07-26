@@ -156,27 +156,31 @@ def plot_spec(ax, x, spec, which_int='raman_parpar', color='blue'):
     ax.plot(x, np.sum(spec, axis=1), color='blue')
     return None
 
-def process_bruker(fn):
+def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_window=13, sg_poly=2, guess=[2155, 0.2, 5, 2165, 1, 5], func_type='gauss'):
     '''
     This is a function that reads in a opus file 
     and returns an array with these columns
     x-values y-raw y-smooth y-bl y-bl-corrected
+    spec_lim:  Spectral boundaries
+    peak_lim:  Boundaries for peaks, in this region the weighing factor for the bl polynomial is set to zero!
+    p_order:   Polynomial order for baseline
+    sg_order:  Polynomial order for savitzgy golay smoothing
+    sg_window: Window size for savitzgy golay smoothing
+    guess:     Guess for fits
+    func:      Function type for fits ('gauss' or 'lorentz')
     '''
-    
-    # Fixed values, will be put as function argument later
-    # Spectral boundaries
-    spec_lim = [2100, 2200]
-    # Boundaries for peak
-    peak_lim = [2145, 2175]
-    # Parameters for fit
-    p_order = 6
+
     # Savitzky-Golay smoothing parameters
-    sg_window = 13
-    sg_poly = 2
     # Function for fit
     func = mult_gauss
-    # Fit guess
-    guess = [2155, 0.2, 5, 2165, 1, 5]
+    if func_type=='gauss':
+        func = mult_gauss
+    elif func_type=='lorentz':
+        func = mult_lorentz
+    else:
+        print("No proper function type given: Please select either 'gauss' or 'lorentz'")
+        print("Exiting")
+        return None
     
     # Load data
     dbs = ofc.listContents(fn)
@@ -214,7 +218,7 @@ def process_bruker(fn):
     min_pos = np.argmin(np.abs(spec_smooth - np.min(spec_smooth)))
     w_vector = np.ones(len(spec_smooth))
     w_vector[peak_pos[0]: peak_pos[1]] = 0
-    w_vector[min_pos] = 100
+    #w_vector[min_pos] = 100
 
     # # Additional position; only for testing purpose!
     # # Remove later
@@ -244,21 +248,21 @@ def process_bruker(fn):
     popt, pcov = curve_fit(func, spec_part[:,0], spec_part[:,1] + yshift, p0=guess, maxfev=10000)
     fit = func(x_val, *popt)   
     # Get single gaussians
-    sing_gauss = []
+    sing_fit = []
     for i in range(len(popt)//3):
-        sing_gauss.append(func(x_val, *popt[i*3:i*3+3]))
-    sing_gauss=np.array(sing_gauss).transpose()
+        sing_fit.append(func(x_val, *popt[i*3:i*3+3]))
+    sing_fit=np.array(sing_fit).transpose()
     
     # Create empty array
     output = np.recarray((len(x_val)), 
-                      dtype=[('x', '>f4'), ('raw', '>f4'), ('smooth', '>f4'), ('bl', '>f4'), ('blcorr', '>f4'), ('fit', '>f4'), ('gauss1', '>f4'), ('gauss2', '>f4')])
-    output['x']  = x_val
+                      dtype=[('x', '>f4'), ('raw', '>f4'), ('smooth', '>f4'), ('bl', '>f4'), ('blcorr', '>f4'), ('fit', '>f4'), ('fit1', '>f4'), ('fit2', '>f4')])
+    output['x'] = x_val
     output['raw']  = spec_raw
     output['smooth']  = spec_smooth
     output['bl']  = bl
     output['blcorr']  = spec_smooth - bl
     output['fit']  = fit
-    output['gauss1'] = sing_gauss[:,0]
-    output['gauss2'] = sing_gauss[:,1]
+    output['fit1'] = sing_fit[:,0]
+    output['fit2'] = sing_fit[:,1]
     
     return output, popt
