@@ -12,6 +12,7 @@ import libspec
 import scipy.signal as ssi
 import opusFC as ofc
 from scipy.optimize import curve_fit
+import ipdb
 
 def mult_gauss(x, *params):
     '''
@@ -156,7 +157,7 @@ def plot_spec(ax, x, spec, which_int='raman_parpar', color='blue'):
     ax.plot(x, np.sum(spec, axis=1), color='blue')
     return None
 
-def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_window=13, sg_poly=2, guess=[2155, 0.2, 5, 2165, 1, 5], func_type='gauss'):
+def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_window=13, sg_poly=2, guess=[2155, 0.2, 5, 2165, 1, 5], func_type='gauss', gauss_pos = 'deriv'):
     '''
     This is a function that reads in a opus file 
     and returns an array with these columns
@@ -168,6 +169,8 @@ def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, 
     sg_window: Window size for savitzgy golay smoothing
     guess:     Guess for fits
     func:      Function type for fits ('gauss' or 'lorentz')
+    gauss_pos: Positions for gauss fit.
+               Can be 'guess' or 'deriv'
     '''
 
     # Savitzky-Golay smoothing parameters
@@ -194,38 +197,31 @@ def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, 
     # Convert to mOD
     spec_full[:,1] = spec_full[:,1]*1000
 
+    # If x values are decreasing, flip matrix
+    if spec_full[0,0] > spec_full[-1,0]:
+        spec_full = np.flipud(spec_full)
+    
     # Extract data between these boundaries
     limits = spec_lim
     pos = [np.argmin(np.abs(spec_full[:,0] - limits[0])), np.argmin(np.abs(spec_full[:,0] - limits[1]))]
     # Sort it
-    pos = np.sort(pos)
+    #pos = np.sort(pos)
     # x values
     x_val = np.array(spec_full[pos[0]:pos[1], 0]).transpose()
     # Only take these
     spec_raw = np.array(spec_full[pos[0]:pos[1], 1]).transpose()
     # Smooth it
     spec_smooth = np.array(ssi.savgol_filter(spec_full[pos[0]:pos[1], 1], sg_window, sg_poly)).transpose()
-    #spec = spec_raw
+    # Get second derivative
+    deriv = np.gradient(np.gradient(spec_smooth))
 
-    # Calculate weighting matrix
-    # peak_freq = 2123
-    # peak_width = 30
-    # peak_range = [peak_freq-peak_width, peak_freq + peak_width]
-    # Or define range
+    # Calculate weighting matrix in range
     peak_range = peak_lim
     peak_pos = [np.argmin(np.abs(x_val - peak_range[0])), np.argmin(np.abs(x_val - peak_range[1]))]
     peak_pos = np.sort(peak_pos)
     min_pos = np.argmin(np.abs(spec_smooth - np.min(spec_smooth)))
     w_vector = np.ones(len(spec_smooth))
     w_vector[peak_pos[0]: peak_pos[1]] = 0
-    #w_vector[min_pos] = 100
-
-    # # Additional position; only for testing purpose!
-    # # Remove later
-    # add_pos = 2075
-    # add_pos = np.argmin(np.abs(spec[:,0] - add_pos))
-    # w_vector[add_pos] = 100
-    # print "With additional position! Remove later!"
 
     # Polynomial fit
     p = np.polyfit(x_val, spec_smooth, p_order, w = w_vector)
@@ -236,16 +232,27 @@ def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, 
     # Shift the processed spectrum by yshift
     #bl_corrected = bl_corrected# - yshift
 
+    # Gaussian fit
     # Cut out part for gaussian fit
-    limits = spec_lim #peak_lim #[2145, 2180] #spec_lim #[2140, 2180] #spec_lim
+    limits = spec_lim
     pos = [np.argmin(np.abs(x_val - limits[0])), np.argmin(np.abs(x_val - limits[1]))]
-    # Sort it
-    pos = np.sort(pos)
-    #import pdb; pdb.set_trace()
     # Only take these
     spec_part = np.array([x_val[pos[0]:pos[1]], bl_corrected[pos[0]:pos[1]]]).transpose()
     # Gaussian fit
-    popt, pcov = curve_fit(func, spec_part[:,0], spec_part[:,1] + yshift, p0=guess, maxfev=10000)
+    #if gauss_pos == 'guess':
+    #    popt, pcov = curve_fit(func, spec_part[:,0], spec_part[:,1] + yshift, p0=guess, maxfev=10000, bounds=([2155, 0, 0, 2165, 0, 0], [2155.1, np.inf, np.inf, 2165.1, np.inf, np.inf]))
+    if gauss_pos == 'deriv':
+        # Get zero transitions in 2nd derivative
+        gauss_lim = [2150, 2175]
+        gauss_pos = [np.argmin(np.abs(spec_part[:,0]-gauss_lim[0])), np.argmin(np.abs(spec_part[:,0]-gauss_lim[1]))]
+        # Find minimum
+        cent = np.argmin(deriv[gauss_pos[0]:gauss_pos[1]]) + gauss_pos[0] 
+        pos1 = np.argmin(np.abs(deriv[gauss_pos[0]:cent])) + gauss_pos[0] + pos[0]
+        pos1 = x_val[pos1]
+        pos2 = np.argmin(np.abs(deriv[cent:gauss_pos[1]])) + cent + pos[0]
+        pos2 = x_val[pos2]
+        guess[0], guess[3] = pos1, pos2
+    popt, pcov = curve_fit(func, spec_part[:,0], spec_part[:,1] + yshift, p0=guess, maxfev=10000, bounds=([guess[0]-2, 0, 0, guess[3]-2, 0, 0], [guess[0]+2, np.inf, np.inf, guess[3]+2, np.inf, np.inf]))
     fit = func(x_val, *popt)   
     # Get single gaussians
     sing_fit = []
@@ -255,14 +262,15 @@ def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, 
     
     # Create empty array
     output = np.recarray((len(x_val)), 
-                      dtype=[('x', '>f4'), ('raw', '>f4'), ('smooth', '>f4'), ('bl', '>f4'), ('blcorr', '>f4'), ('fit', '>f4'), ('fit1', '>f4'), ('fit2', '>f4')])
+                         dtype=[('x', '>f4'), ('raw', '>f4'), ('smooth', '>f4'), ('deriv', '>f4'), ('bl', '>f4'), ('blcorr', '>f4'), ('fit', '>f4'), ('fit1', '>f4'), ('fit2', '>f4')])
     output['x'] = x_val
-    output['raw']  = spec_raw
+    output['raw']     = spec_raw
     output['smooth']  = spec_smooth
-    output['bl']  = bl
+    output['deriv']   = deriv
+    output['bl']      = bl
     output['blcorr']  = spec_smooth - bl
-    output['fit']  = fit
-    output['fit1'] = sing_fit[:,0]
-    output['fit2'] = sing_fit[:,1]
+    output['fit']     = fit
+    output['fit1']    = sing_fit[:,0]
+    output['fit2']    = sing_fit[:,1]
     
     return output, popt
