@@ -157,7 +157,7 @@ def plot_spec(ax, x, spec, which_int='raman_parpar', color='blue'):
     ax.plot(x, np.sum(spec, axis=1), color='blue')
     return None
 
-def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_window=13, sg_poly=2, guess=[2155, 0.2, 5, 2165, 1, 5], func_type='gauss', gauss_pos = 'deriv'):
+def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_window=13, sg_poly=2, guess=[2155, 0.2, 5, 2165, 1, 5], func_type='gauss', gauss_pos = 'deriv', fit_tol=0.001, norm=True, gauss_lim = [2155, 2172]):
     '''
     This is a function that reads in a opus file 
     and returns an array with these columns
@@ -171,6 +171,10 @@ def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, 
     func:      Function type for fits ('gauss' or 'lorentz')
     gauss_pos: Positions for gauss fit.
                Can be 'guess' or 'deriv'
+    gauss_lim: Region in which to search for 2nd deriv zeros for
+               gaussian fits
+    fit_tol:   Tolerance for gaussian fit when using 'deriv'
+    norm:      Normalize baseline corrected spectrum
     '''
 
     # Savitzky-Golay smoothing parameters
@@ -227,6 +231,8 @@ def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, 
     p = np.polyfit(x_val, spec_smooth, p_order, w = w_vector)
     bl = np.polyval(p, x_val).transpose()
     bl_corrected = np.array(spec_smooth - bl).transpose()
+    if norm==True:
+        bl_corrected = bl_corrected / np.max(bl_corrected)
     # Determine minimum of the difference in peak_limits
     yshift = np.min(bl_corrected)
     # Shift the processed spectrum by yshift
@@ -243,7 +249,6 @@ def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, 
     #    popt, pcov = curve_fit(func, spec_part[:,0], spec_part[:,1] + yshift, p0=guess, maxfev=10000, bounds=([2155, 0, 0, 2165, 0, 0], [2155.1, np.inf, np.inf, 2165.1, np.inf, np.inf]))
     if gauss_pos == 'deriv':
         # Get zero transitions in 2nd derivative
-        gauss_lim = [2150, 2175]
         gauss_pos = [np.argmin(np.abs(spec_part[:,0]-gauss_lim[0])), np.argmin(np.abs(spec_part[:,0]-gauss_lim[1]))]
         # Find minimum
         cent = np.argmin(deriv[gauss_pos[0]:gauss_pos[1]]) + gauss_pos[0] 
@@ -252,7 +257,7 @@ def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, 
         pos2 = np.argmin(np.abs(deriv[cent:gauss_pos[1]])) + cent + pos[0]
         pos2 = x_val[pos2]
         guess[0], guess[3] = pos1, pos2
-    popt, pcov = curve_fit(func, spec_part[:,0], spec_part[:,1] + yshift, p0=guess, maxfev=10000, bounds=([guess[0]-2, 0, 0, guess[3]-2, 0, 0], [guess[0]+2, np.inf, np.inf, guess[3]+2, np.inf, np.inf]))
+    popt, pcov = curve_fit(func, spec_part[:,0], spec_part[:,1] + yshift, p0=guess, maxfev=10000, bounds=([guess[0]-fit_tol, 0, 0, guess[3]-fit_tol, 0, 0], [guess[0]+fit_tol, np.inf, np.inf, guess[3]+fit_tol, np.inf, np.inf]))
     fit = func(x_val, *popt)   
     # Get single gaussians
     sing_fit = []
@@ -268,9 +273,48 @@ def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, 
     output['smooth']  = spec_smooth
     output['deriv']   = deriv
     output['bl']      = bl
-    output['blcorr']  = spec_smooth - bl
+    output['blcorr']  = bl_corrected
     output['fit']     = fit
     output['fit1']    = sing_fit[:,0]
     output['fit2']    = sing_fit[:,1]
+    deriv_0 = [guess[0], guess[3]]
     
-    return output, popt
+    return output, popt, deriv_0
+
+def quick_test(fn, peak_lim=[2150, 2195], plot=True):
+    '''
+    Just a quick way to plot data and fits
+    directly from the 
+    '''
+    # Load data
+    spec, spec_opt, deriv_0 = process_bruker(fn, peak_lim=peak_lim, gauss_pos = 'deriv', guess=[2161, 0.2, 5, 2168, 0.2, 5], fit_tol=10)
+    if not plot:
+        return None, None, spec_opt
+    # Create figure
+    fig, axs = plt.subplots(3,1, sharex=True)
+    fig.canvas.set_window_title(fn)
+    # Plot raw, smoothed and BL
+    ax = axs[0]
+    ax.plot(spec.x, spec.raw)
+    ax.plot(spec.x, spec.smooth)
+    ax.plot(spec.x, spec.bl)
+    # Plot deriv
+    ax = axs[1]
+    ax.plot(spec.x, spec.deriv)
+    ax.axhline(color='grey', linestyle='--')
+    for pos in deriv_0:
+        ax.axvline(pos, color='grey', linestyle='--')
+    # Plot labels
+    for pos in deriv_0:
+        ax.text(pos, ax.get_ylim()[1], '%.0f' % pos, ha='center')
+    # Plot fits
+    ax = axs[2]
+    h54, = ax.plot(spec.x, spec.blcorr, label='spec')
+    ax.plot(spec.x, spec.fit1, ':', color=h54.get_color())
+    ax.plot(spec.x, spec.fit2, ':', color=h54.get_color())
+    ax.plot(spec.x, spec.fit)
+    ax.plot(spec.x, spec.fit1 + spec.fit2)
+    # Plot labels
+    for i in range(len(spec_opt) // 3):
+        ax.text(spec_opt[i*3], spec_opt[i*3+1], '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='center', va='center')
+    return fig, axs, spec_opt
