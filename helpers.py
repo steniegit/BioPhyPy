@@ -281,15 +281,16 @@ def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, 
     
     return output, popt, deriv_0
 
-def quick_test(fn, peak_lim=[2150, 2195], plot=True):
+def quick_test(fn, peak_lim=[2150, 2195], plot=True, fit_tol=10):
     '''
     Just a quick way to plot data and fits
     directly from the 
+    To do: loop all parameters through this function
     '''
     # Load data
-    spec, spec_opt, deriv_0 = process_bruker(fn, peak_lim=peak_lim, gauss_pos = 'deriv', guess=[2161, 0.2, 5, 2168, 0.2, 5], fit_tol=10)
+    spec, spec_opt, deriv_0 = process_bruker(fn, peak_lim=peak_lim, gauss_pos = 'deriv', guess=[2161, 0.2, 5, 2168, 0.2, 5], fit_tol=fit_tol)
     if not plot:
-        return None, None, spec_opt
+        return None, None, spec_opt, spec
     # Create figure
     fig, axs = plt.subplots(3,1, sharex=True)
     fig.canvas.set_window_title(fn)
@@ -317,4 +318,7 @@ def quick_test(fn, peak_lim=[2150, 2195], plot=True):
     # Plot labels
     for i in range(len(spec_opt) // 3):
         ax.text(spec_opt[i*3], spec_opt[i*3+1], '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='center', va='center')
-    return fig, axs, spec_opt
+    # Put filename in figure and windows title
+    fig.suptitle(fn)
+    fig.canvas.set_window_title(fn)
+    return fig, axs, spec_opt, spec
