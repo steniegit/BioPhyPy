@@ -281,14 +281,15 @@ def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, 
     
     return output, popt, deriv_0
 
-def quick_test(fn, peak_lim=[2150, 2195], plot=True, fit_tol=10):
+def quick_test(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_window=13, sg_poly=2, guess=[2155, 0.2, 5, 2165, 1, 5], func_type='gauss', gauss_pos = 'deriv', fit_tol=10, norm=True, gauss_lim = [2155, 2172], plot=True):
     '''
     Just a quick way to plot data and fits
     directly from the 
     To do: loop all parameters through this function
     '''
     # Load data
-    spec, spec_opt, deriv_0 = process_bruker(fn, peak_lim=peak_lim, gauss_pos = 'deriv', guess=[2161, 0.2, 5, 2168, 0.2, 5], fit_tol=fit_tol)
+    #spec, spec_opt, deriv_0 = process_bruker(fn, peak_lim=peak_lim, gauss_pos = 'deriv', guess=[2161, 0.2, 5, 2168, 0.2, 5], fit_tol=fit_tol)
+    spec, spec_opt, deriv_0 = process_bruker(fn, spec_lim=spec_lim, peak_lim=peak_lim, p_order=p_order, sg_window=sg_window, sg_poly=sg_poly, guess=guess, func_type=func_type, gauss_pos=gauss_pos, fit_tol=fit_tol, norm=norm, gauss_lim=gauss_lim)
     if not plot:
         return None, None, spec_opt, spec
     # Create figure
