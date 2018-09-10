@@ -285,7 +285,7 @@ def quick_test(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_w
     '''
     Just a quick way to plot data and fits
     directly from the 
-    To do: loop all parameters through this function
+    lr_position: Move band position labels to left and right
     '''
     # Get colors
     prop_cycle = plt.rcParams['axes.prop_cycle']
@@ -334,10 +334,15 @@ def quick_test(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_w
     for i in range(len(spec_opt) // 3):
         if i==0:
             #ax.text(spec_opt[i*3], spec_opt[i*3+1], '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='right', va='center')
-            ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='right', va='center')
+            if spec_opt[0] < spec_opt[3]:
+                ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='right', va='center')
+            else:
+                ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='left', va='center')
         else:
-            #ax.text(spec_opt[i*3], spec_opt[i*3+1], '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='left', va='center')
-            ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='left', va='center')
+            if spec_opt[0] < spec_opt[3]: 
+                ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='left', va='center')
+            else:
+                ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='right', va='center')
         ax.axvline(spec_opt[i*3], color='grey', linestyle='--', lw=1, zorder=-20)
     # Label axes
     ax.set_xlabel('Wavenumber / cm$^{-1}$')
