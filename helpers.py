@@ -370,7 +370,7 @@ def quick_test2(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_
     if not plot:
         return None, None, spec_opt, spec
     # Create figure
-    fig, axs = plt.subplots(2,1, sharex=True)
+    fig, axs = plt.subplots(3,1, sharex=True)
     fig.canvas.set_window_title(fn)
     # Plot raw, smoothed and BL
     ax = axs[0]
@@ -395,6 +395,15 @@ def quick_test2(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_
     #pos = deriv_0[1]; ax.text(pos, ax.get_ylim()[1]*1.05, '%.0f' % pos, ha='left')
     ax.legend()
     ax.set_ylabel('$\Delta\Delta$(Abs)') # / mOD/cm$^-2$')
+    # Plot fits
+    ax = axs[2]
+    ax.plot(spec.x, spec.blcorr, label='BL corrected', color=hs.get_color())
+    #hf, = ax.plot(spec.x, spec.fit, '--', label='Fit', color=colors[3])
+    #ax.plot(spec.x, spec.fit1, ':', color=hf.get_color())
+    #ax.plot(spec.x, spec.fit2, ':', color=hf.get_color())
+    #ax.plot(spec.x, spec.fit1 + spec.fit2, label='Fit')
+    ax.set_xlim([np.min(spec.x), np.max(spec.x)])
+    ax.legend()
     # Label axes
     ax.set_xlabel('Wavenumber / cm$^{-1}$')
     ax.set_ylabel('Norm. abs.')
