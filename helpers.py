@@ -354,3 +354,54 @@ def quick_test(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_w
         fig.suptitle(title)
     fig.canvas.set_window_title(fn)
     return fig, axs, spec_opt, spec
+
+def quick_test2(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_window=13, sg_poly=2, guess=[2155, 0.2, 5, 2165, 1, 5], func_type='gauss', gauss_pos = 'deriv', fit_tol=10, norm=True, gauss_lim = [2155, 2172], plot=True, title=''):
+    '''
+    Just a quick way to plot data and fits
+    directly from the 
+    lr_position: Move band position labels to left and right
+    '''
+    # Get colors
+    prop_cycle = plt.rcParams['axes.prop_cycle']
+    colors = prop_cycle.by_key()['color']
+    # Load data
+    #spec, spec_opt, deriv_0 = process_bruker(fn, peak_lim=peak_lim, gauss_pos = 'deriv', guess=[2161, 0.2, 5, 2168, 0.2, 5], fit_tol=fit_tol)
+    spec, spec_opt, deriv_0 = process_bruker(fn, spec_lim=spec_lim, peak_lim=peak_lim, p_order=p_order, sg_window=sg_window, sg_poly=sg_poly, guess=guess, func_type=func_type, gauss_pos=gauss_pos, fit_tol=fit_tol, norm=norm, gauss_lim=gauss_lim)
+    if not plot:
+        return None, None, spec_opt, spec
+    # Create figure
+    fig, axs = plt.subplots(2,1, sharex=True)
+    fig.canvas.set_window_title(fn)
+    # Plot raw, smoothed and BL
+    ax = axs[0]
+    ax.plot(spec.x, spec.raw, label='Raw spectrum', color=colors[1])
+    hs, = ax.plot(spec.x, spec.smooth, '--', label='Smoothed spectrum', color=colors[0])
+    ax.plot(spec.x, spec.bl, label='Baseline', color=colors[2])
+    ax.legend(loc='lower right')
+    ax.set_ylabel('Absorb. / mOD')
+    # Plot deriv
+    ax = axs[1]
+    ax.plot(spec.x, spec.deriv, label='2nd derivative')
+    ax.axhline(color='grey', linestyle='--', lw=1, zorder=-20)
+    for pos in deriv_0:
+        ax.axvline(pos, color='grey', linestyle='--', lw=1, zorder=-20)
+    # Plot labels
+    for i, pos in enumerate(deriv_0):
+        if i==0:
+            ax.text(pos, ax.get_ylim()[1]*1.1, '%.0f' % pos, ha='right')
+        else:
+            ax.text(pos, ax.get_ylim()[1]*1.1, '%.0f' % pos, ha='left')
+    #pos = deriv_0[0]; ax.text(pos, ax.get_ylim()[1]*1.05, '%.0f' % pos, ha='right')
+    #pos = deriv_0[1]; ax.text(pos, ax.get_ylim()[1]*1.05, '%.0f' % pos, ha='left')
+    ax.legend()
+    ax.set_ylabel('$\Delta\Delta$(Abs)') # / mOD/cm$^-2$')
+    # Label axes
+    ax.set_xlabel('Wavenumber / cm$^{-1}$')
+    ax.set_ylabel('Norm. abs.')
+    # Put filename in figure and windows title
+    if len(title) ==0:
+        fig.suptitle(fn)
+    else:
+        fig.suptitle(title)
+    fig.canvas.set_window_title(fn)
+    return fig, axs, spec_opt, spec
