@@ -281,7 +281,7 @@ def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, 
     
     return output, popt, deriv_0
 
-def quick_test(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_window=13, sg_poly=2, guess=[2155, 0.2, 5, 2165, 1, 5], func_type='gauss', gauss_pos = 'deriv', fit_tol=10, norm=True, gauss_lim = [2155, 2172], plot=True, title=''):
+def quick_test(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_window=13, sg_poly=2, guess=[2155, 0.2, 5, 2165, 1, 5], func_type='gauss', gauss_pos = 'deriv', fit_tol=10, norm=True, gauss_lim = [2155, 2172], plot=True, title='', plot_fits=True):
     '''
     Just a quick way to plot data and fits
     directly from the 
@@ -324,26 +324,27 @@ def quick_test(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_w
     # Plot fits
     ax = axs[2]
     ax.plot(spec.x, spec.blcorr, label='Experimental', color=hs.get_color())
-    hf, = ax.plot(spec.x, spec.fit, '--', label='Fit', color=colors[3])
-    ax.plot(spec.x, spec.fit1, ':', color=hf.get_color())
-    ax.plot(spec.x, spec.fit2, ':', color=hf.get_color())
-    #ax.plot(spec.x, spec.fit1 + spec.fit2, label='Fit')
+    if plot_fits:
+        hf, = ax.plot(spec.x, spec.fit, '--', label='Fit', color=colors[3])
+        ax.plot(spec.x, spec.fit1, ':', color=hf.get_color())
+        ax.plot(spec.x, spec.fit2, ':', color=hf.get_color())
+        #ax.plot(spec.x, spec.fit1 + spec.fit2, label='Fit')
+        # Plot labels
+        for i in range(len(spec_opt) // 3):
+            if i==0:
+                #ax.text(spec_opt[i*3], spec_opt[i*3+1], '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='right', va='center')
+                if spec_opt[0] < spec_opt[3]:
+                    ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='right', va='center')
+                else:
+                    ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='left', va='center')
+            else:
+                if spec_opt[0] < spec_opt[3]: 
+                    ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='left', va='center')
+                else:
+                    ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='right', va='center')
+            ax.axvline(spec_opt[i*3], color='grey', linestyle='--', lw=1, zorder=-20)
     ax.set_xlim([np.min(spec.x), np.max(spec.x)])
     ax.legend()
-    # Plot labels
-    for i in range(len(spec_opt) // 3):
-        if i==0:
-            #ax.text(spec_opt[i*3], spec_opt[i*3+1], '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='right', va='center')
-            if spec_opt[0] < spec_opt[3]:
-                ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='right', va='center')
-            else:
-                ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='left', va='center')
-        else:
-            if spec_opt[0] < spec_opt[3]: 
-                ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='left', va='center')
-            else:
-                ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='right', va='center')
-        ax.axvline(spec_opt[i*3], color='grey', linestyle='--', lw=1, zorder=-20)
     # Label axes
     ax.set_xlabel('Wavenumber / cm$^{-1}$')
     ax.set_ylabel('Norm. abs.')
@@ -355,62 +356,3 @@ def quick_test(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_w
     fig.canvas.set_window_title(fn)
     return fig, axs, spec_opt, spec
 
-def quick_test2(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_window=13, sg_poly=2, guess=[2155, 0.2, 5, 2165, 1, 5], func_type='gauss', gauss_pos = 'deriv', fit_tol=10, norm=True, gauss_lim = [2155, 2172], plot=True, title=''):
-    '''
-    Just a quick way to plot data and fits
-    directly from the 
-    lr_position: Move band position labels to left and right
-    '''
-    # Get colors
-    prop_cycle = plt.rcParams['axes.prop_cycle']
-    colors = prop_cycle.by_key()['color']
-    # Load data
-    #spec, spec_opt, deriv_0 = process_bruker(fn, peak_lim=peak_lim, gauss_pos = 'deriv', guess=[2161, 0.2, 5, 2168, 0.2, 5], fit_tol=fit_tol)
-    spec, spec_opt, deriv_0 = process_bruker(fn, spec_lim=spec_lim, peak_lim=peak_lim, p_order=p_order, sg_window=sg_window, sg_poly=sg_poly, guess=guess, func_type=func_type, gauss_pos=gauss_pos, fit_tol=fit_tol, norm=norm, gauss_lim=gauss_lim)
-    if not plot:
-        return None, None, spec_opt, spec
-    # Create figure
-    fig, axs = plt.subplots(3,1, sharex=True)
-    fig.canvas.set_window_title(fn)
-    # Plot raw, smoothed and BL
-    ax = axs[0]
-    ax.plot(spec.x, spec.raw, label='Raw spectrum', color=colors[1])
-    hs, = ax.plot(spec.x, spec.smooth, '--', label='Smoothed spectrum', color=colors[0])
-    ax.plot(spec.x, spec.bl, label='Baseline', color=colors[2])
-    ax.legend(loc='lower right')
-    ax.set_ylabel('Absorb. / mOD')
-    # Plot deriv
-    ax = axs[1]
-    ax.plot(spec.x, spec.deriv, label='2nd derivative')
-    ax.axhline(color='grey', linestyle='--', lw=1, zorder=-20)
-    for pos in deriv_0:
-        ax.axvline(pos, color='grey', linestyle='--', lw=1, zorder=-20)
-    # Plot labels
-    for i, pos in enumerate(deriv_0):
-        if i==0:
-            ax.text(pos, ax.get_ylim()[1]*1.1, '%.0f' % pos, ha='right')
-        else:
-            ax.text(pos, ax.get_ylim()[1]*1.1, '%.0f' % pos, ha='left')
-    #pos = deriv_0[0]; ax.text(pos, ax.get_ylim()[1]*1.05, '%.0f' % pos, ha='right')
-    #pos = deriv_0[1]; ax.text(pos, ax.get_ylim()[1]*1.05, '%.0f' % pos, ha='left')
-    ax.legend()
-    ax.set_ylabel('$\Delta\Delta$(Abs)') # / mOD/cm$^-2$')
-    # Plot fits
-    ax = axs[2]
-    ax.plot(spec.x, spec.blcorr, label='BL corrected', color=hs.get_color())
-    #hf, = ax.plot(spec.x, spec.fit, '--', label='Fit', color=colors[3])
-    #ax.plot(spec.x, spec.fit1, ':', color=hf.get_color())
-    #ax.plot(spec.x, spec.fit2, ':', color=hf.get_color())
-    #ax.plot(spec.x, spec.fit1 + spec.fit2, label='Fit')
-    ax.set_xlim([np.min(spec.x), np.max(spec.x)])
-    ax.legend()
-    # Label axes
-    ax.set_xlabel('Wavenumber / cm$^{-1}$')
-    ax.set_ylabel('Norm. abs.')
-    # Put filename in figure and windows title
-    if len(title) ==0:
-        fig.suptitle(fn)
-    else:
-        fig.suptitle(title)
-    fig.canvas.set_window_title(fn)
-    return fig, axs, spec_opt, spec
