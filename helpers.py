@@ -13,6 +13,112 @@ import scipy.signal as ssi
 import opusFC as ofc
 from scipy.optimize import curve_fit
 import ipdb
+import re
+import glob, os
+from IPython.core.debugger import set_trace
+
+def plot_octet(data_folder='', seg_labels=['BL1', 'Load', 'BL2', 'Assoc.', 'Diss.'], ptitle='', legs='', l_labels=[], l_posis=[], b_labels=[], b_posis=[], a_labels=[], a_posis=[], d_labels=[], d_posis=[]):
+    '''
+    This function plots Octet data
+      Input:
+    data_folder: path with octet data (including raw data xls)
+    seg_labels:  labels for segments
+    ptitle:      plot title
+    legs:        Place legend with these entries next to plot
+                 If left empty, no legend will be shown
+    l_labels, l_posis: Labels for loading
+    b_labels, b_posis: Labels for BL2
+    a_labels, a_posis: Labels for association
+    d_labels, d_posis: Labels for dissociation
+      Output:
+    fig, ax: Figure and axis handle
+    '''
+
+    if len(data_folder) == 0:
+        print("Please specify data folder!\n Exiting")
+        return None
+    # Load data
+    data = np.genfromtxt(data_folder + 'RawData0.xls', skip_header=2)
+
+    # Get boundaries between steps
+    fns = glob.glob(data_folder +'*.frd')
+    # Sort it
+    fns.sort()
+    # Take first one (does not matter)
+    fn = fns[0]
+    # Open file and find 'actual times'
+    act_times = []
+    with open(fn,'r') as f:
+        for line in f:
+            if "ActualTime" in line:
+                act_time = float(re.search('<ActualTime>(.+?)</ActualTime>', line).group(1))
+                act_times.append(act_time)
+    act_times = np.array(act_times)
+    act_times = np.cumsum(act_times)
+
+    # Create figure
+    #fig, axs = plt.subplots(1)
+    #ax = axs
+    fig = plt.figure(figsize=[8,5])
+    ax = fig.add_axes([.1, .1, .7, .75])
+
+    # Plot data
+    hps = [] # Plot handles
+    for i in range(data.shape[1]//2-1): # Last two columns contain temperature information
+        if len(legs)>0:
+            hp, = ax.plot(data[:,i*2],data[:,i*2+1], label=legs[i], lw=1)
+        else:
+            hp, = ax.plot(data[:,i*2], data[:,i*2+1], label=str(i), lw=1)
+        hps.append(hp)
+    if len(legs)>0:
+        # Shrink current axis by 20%
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+        # Add legend
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    # Add borders
+    for time in act_times:
+        ax.axvline(time, color='grey', linestyle=':', lw=.5)
+    ax.set_xlabel('Time / s')
+    ax.set_ylabel('Binding / nm')
+    ax.set_xlim([0, act_times[-1]])
+    #ax.set_ylim([0, 4])
+
+    # Determine middle for labels
+    temp = [0] + list(act_times)
+    temp = np.array(temp[:-1])
+    middles = []
+    #set_trace()
+    for i in range(len(act_times)):
+        middles.append(.5*(temp[i]+act_times[i]))
+    # Add labels
+    for i in range(len(act_times)):
+        pos = (act_times[i] - np.min(act_times))
+        ax.text(middles[i], np.max(data[:,1::2])*1.07, seg_labels[i], ha='center')
+    # Labels in loading
+    for i in range(len(l_labels)): 
+        ax.text(middles[1]*1.1, l_posis[i], l_labels[i], ha='center', color=hps[i].get_color()) # ,bbox=dict(facecolor='white', alpha=.5) $\,\mu$g/ml #bbox=dict(facecolor='white', alpha=.5)
+    # Labels for BL2
+    for i in range(len(b_labels)): 
+        ax.text(middles[2], b_posis[i], b_labels[i], ha='center', color=hps[i].get_color())
+    # Labels for association
+    for i in range(len(a_labels)): 
+        ax.text(middles[3], a_posis[i], a_labels[i], ha='center', color=hps[i].get_color())
+    # Labels for dissociation
+    for i in range(len(d_labels)): 
+        ax.text(middles[4], d_posis[i], d_labels[i], ha='center', color=hps[i].get_color())
+    # Set title
+    ht = ax.set_title(ptitle)
+    ht.set_position((.5, 1.1))
+    # Add grid
+    #ax.grid()
+
+    # Save figure
+    fig.savefig(data_folder + '/' + data_folder.split('/')[-2] + '.pdf')
+    print("Figure saved as %s" % (data_folder + '/' + data_folder.split('/')[-2] + '.pdf'))
+
+    return fig, ax
+        
 
 def mult_gauss(x, *params):
     '''
