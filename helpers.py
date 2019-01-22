@@ -462,3 +462,212 @@ def quick_test(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_w
     fig.canvas.set_window_title(fn)
     return fig, axs, spec_opt, spec
 
+def time_plot(specs, times, pos, plot=True):
+    '''
+    This script inputs several spectra and plots
+    the signal intensities at a certain spectral
+    position vs time
+    spec: List time-dependent of spectra
+    times: List of respective times
+    pos: List of spectral positions
+
+    It outputs a recarray with the intensities
+    ints: list with intensities vs time
+    '''
+    # Check if length of spec is equal to length of times
+    if len(specs) != len(times):
+        print("Length of spec and times lists is not the same!\n Exciting")
+        return None, None
+    # Go through list of spectra and determine intensity
+    ints = []
+    for spec in specs:
+        # Determine index
+        ind = np.argmin(np.abs(spec[:,0] - pos))
+        ints.append(spec[ind,1])
+    return ints
+
+def bl_correction(spec, xpos, tol=5, normlim=[628, 730], norm=True):
+    '''
+    !!! This version is deprecated !!!
+    !!! Use bl_correction_new !!!
+    This script does a baseline correction and extends
+    two columns to the spectrum: the baseline and the
+    bl subtracted spectrum
+    spec: input spectrum
+    xpos: position of baseline points
+    tol: +- range in which to search for minimum
+    '''
+    print('!!! This version of bl_correction is deprecated !!!')
+    print('!!! Please use bl_correction_new in the future !!!\n')
+    import numpy as np
+    from scipy import interpolate as interp
+    # Extract x and y values
+    x = spec[:,0]
+    if x[0] > x[-1]:
+        print("x-values are descending! Please flip before using bl_correction!\n Exiting function")
+        return None
+    y = spec[:,1]
+    # Determine minimum positions around xpos
+    minpos = []
+    miny = []
+    for pos in xpos:
+        pos_start = np.argmin(np.abs(x - pos + tol))
+        pos_end   = np.argmin(np.abs(x - pos - tol))
+        if pos_start == pos_end:
+            tempmin = pos_start
+        else:
+            tempmin = np.argmin(y[pos_start:pos_end])
+        minpos.append(x[tempmin+pos_start])
+        miny.append(y[tempmin+pos_start])
+    # Cubic spline interpolation
+    bl_func = interp.CubicSpline(minpos, miny)
+    bl_y = bl_func(x)
+    # Subtract bl
+    y_sub = y - bl_y
+    # Do normalisation only if norm=True
+    if norm:
+        # Find indices
+        xnorm_lower = np.argmin(np.abs(x-normlim[0]))
+        xnorm_upper = np.argmin(np.abs(x-normlim[1]))
+        norm_curve = y_sub/np.max(y_sub[xnorm_lower:xnorm_upper])
+    else:
+        norm_curve = np.zeros(len(x)) * np.nan
+    # Create output
+    pos = np.vstack((minpos, miny)).T
+    bl = np.hstack((spec, np.vstack((bl_y, y_sub, norm_curve)).T))
+    return bl
+
+def bl_correction_new(spec, xpos, tol=5, normlim=[628, 730], norm=True, smooth=False, sg_window=21, sg_pol=2):
+    '''
+    This script reads in raw data (2 columns), 
+    does a baseline correction and smoothes data (optional)
+    spec: input spectrum
+    xpos: position of baseline points
+    tol: +- range in which to search for minimum
+    normlim: limits for normalization
+    norm: normalize (True or False)
+    smooth: Do Savitzky-Golay smoothing (True or False)
+    sg_window: Savitzky Golay window (has to be odd number)
+    sg_pol: Polynomial for SG filter
+    The output is a recarray with the following fields
+    out.x
+    out.y
+    out.y_smooth (if requested)
+    out.y_blsub
+    out.y_norm  (if requested)
+    '''
+    # Extract x and y values
+    x = spec[:,0]
+    if x[0] > x[-1]:
+        print("x-values are descending! Please flip before using bl_correction!\n Exiting function")
+        return None
+    if smooth:
+        y = spec[:,1]
+        y_smooth = ssi.savgol_filter(y,21,2)
+    else:
+        y = spec[:,1]
+        y_smooth = np.zeros(len(x)) * np.nan
+    # Determine minimum positions around xpos
+    minpos = []
+    miny = []
+    for pos in xpos:
+        pos_start = np.argmin(np.abs(x - pos + tol))
+        pos_end   = np.argmin(np.abs(x - pos - tol))
+        if pos_start == pos_end:
+            tempmin = pos_start
+        else:
+            tempmin = np.argmin(y[pos_start:pos_end])
+        minpos.append(x[tempmin+pos_start])
+        miny.append(y[tempmin+pos_start])
+    # Cubic spline interpolation
+    bl_func = interp.CubicSpline(minpos, miny)
+    bl = bl_func(x)
+    # Subtract bl
+    y_sub = y - bl
+    # Do normalisation only if norm=True
+    if norm:
+        # Find indices
+        xnorm_lower = np.argmin(np.abs(x-normlim[0]))
+        xnorm_upper = np.argmin(np.abs(x-normlim[1]))
+        norm_curve = y_sub/np.max(y_sub[xnorm_lower:xnorm_upper])
+    else:
+        norm_curve = np.zeros(len(x)) * np.nan
+    # Create output
+    pos = np.vstack((minpos, miny)).T
+    # Create recarray with fields
+    dt = spec.dtype.name
+    dtype_list = [('x',dt), ('y',dt), ('y_smooth',dt), ('bl',dt), ('y_blsub',dt), ('y_norm',dt)]
+    out = np.recarray(len(spec), dtype=dtype_list)
+    # Fill array
+    out.x = spec[:,0]
+    out.y = spec[:,1]
+    out.bl = bl
+    out.y_smooth = y_smooth
+    out.y_blsub = y_sub
+    out.y_norm = norm_curve
+    return out
+
+def subtract_sol(spec, sol, check=False, which='y_blsub', tol=5, label1='before', label2='irradiated'):
+    '''
+    Subtracts pure solvent spectrum from mixture
+    spec: Spectrum with solvent peaks
+    sol: pure solvent spectrum (but can be any spectrum as well)
+    check: plot spectra
+    which: which column to take from spectra, e.g. 'y', 'y_blsub'...
+    tol: tolerance for maximum search in spectrum
+    label1: if you don't want to have the default labels you can change it here
+    label2: dito
+    The output is a recarray with the following fields
+    out.x:     x-values
+    out.spec:  scaled and interpolated spectrum
+    out.sol:   scaled and interpolated solvent spectrum
+    out.subtr: subtracted spectrum (spec - sol)
+    '''
+    # Determine maximum position in solvent spectrum
+    sol_ind = np.argmax(sol[which])
+    sol_int = np.max(sol[which])
+    sol_wn  = sol.x[sol_ind]
+    # find position for other spectrum
+    spec_ind = np.argmin(np.abs(spec.x-sol_wn))
+    spec_int = np.max(spec[which][spec_ind-10:spec_ind+10])
+    spec_ind = np.argmax(spec[which][spec_ind-10:spec_ind+10])
+    # Determine lower and upper limits for interpolation
+    interp_lower = np.max([np.min(sol.x), np.min(spec.x)])
+    interp_upper = np.min([np.max(sol.x), np.max(spec.x)])
+    # Create x values for interpolation
+    x_interp = np.linspace(interp_lower, interp_upper, 1000)
+    # Interpolate
+    spec_interp = np.interp(x_interp, spec.x, spec[which]).squeeze() / spec_int
+    sol_interp  = np.interp(x_interp, sol.x, sol[which]).squeeze() / sol_int
+    # Create array
+    dt = spec_interp.dtype.name
+    out = np.recarray(len(x_interp), dtype=[('x',dt), ('spec',dt), ('sol',dt), ('subtr',dt)])
+    out.x = x_interp
+    out.spec = spec_interp
+    out.sol = sol_interp
+    out.subtr = spec_interp - sol_interp
+    # Output plot if asked 
+    if check: 
+        fig, axs = plt.subplots(3, sharex=True)
+        ax = axs[0]
+        ax.set_title('BL corrected spectra, normalized to maximum, no smoothing')
+        ax.plot(spec.x, (spec.y-spec.bl)/np.max(spec.y_blsub), label=label1)
+        ax.plot(sol.x, (sol.y-sol.bl)/np.max(sol.y_blsub), label=label2)
+        ax.legend()
+        ax = axs[1]
+        ax.plot(x_interp, spec_interp, label=label1)
+        ax.set_title('Smoothed + BL corrected + interpolated)')
+        ax.axhline(0, color='black', zorder=-10)
+        ax.plot(x_interp, sol_interp, label=label2)
+        ax.axhline(0, color='black', zorder=-10)
+        ax.legend()
+        ax.plot(sol_wn, 1, 'o')
+        ax = axs[2]
+        ax.plot(x_interp, spec_interp - sol_interp)
+        ax.set_title('Irradiated-before')
+        ax.axhline(0, color='black', zorder=-10)
+        ax.set_xlim([np.min(x_interp), np.max(x_interp)])
+        fig.show()
+        return out, fig
+    else:
+        return out, None
