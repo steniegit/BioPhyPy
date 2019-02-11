@@ -17,6 +17,59 @@ import re
 import glob, os
 from IPython.core.debugger import set_trace
 
+##### The following four kinetic functions are from Godfrey
+def exp_rise(x, k, c):
+    return c*(1 - np.exp(-k*x))
+
+def exp_decay(x, k, c):
+    return c*np.exp(-k*x)
+    
+def biexp_rise(x, a1, a2, k1, k2, c):
+    return c*(1 - a1*np.exp(-k1*x) - a2*np.exp(-k2*x))
+
+# might need one with a pre-exponential factor if decay starts with a value other than 1.0
+def biexp_decay(x, a1, a2, k1, k2, c):
+    return c*(a1*np.exp(-k1*x) + a2*np.exp(-k2*x))
+
+def r_sq(data, fit):
+    '''
+    R squared
+    '''
+    mean_data = np.mean(data)
+    ss_tot = np.sum(np.power(fit - mean_data, 2))
+    ss_res = np.sum(np.power(data - fit, 2))
+    return 1 - (ss_res/ss_tot)
+
+##### End: kinetic functions from Godfrey
+
+def get_octet(data_folder=''):
+    ''' 
+    This function is to read Octet data
+    '''
+    if len(data_folder) == 0:
+        print("Please specify data folder!\n Exiting")
+        return None
+    # Load data
+    data = np.genfromtxt(data_folder + 'RawData0.xls', skip_header=2)
+
+    # Get boundaries between steps
+    fns = glob.glob(data_folder +'*.frd')
+    # Sort it
+    fns.sort()
+    # Take first one (does not matter)
+    fn = fns[0]
+    # Open file and find 'actual times'
+    act_times = []
+    with open(fn,'r') as f:
+        for line in f:
+            if "ActualTime" in line:
+                act_time = float(re.search('<ActualTime>(.+?)</ActualTime>', line).group(1))
+                act_times.append(act_time)
+    act_times = np.array(act_times)
+    act_times = np.cumsum(act_times)
+    return data, act_times
+    
+
 def plot_octet(data_folder='', seg_labels=['BL1', 'Load', 'BL2', 'Assoc.', 'Diss.'], ptitle='', legs='', l_labels=[], l_posis=[], b_labels=[], b_posis=[], a_labels=[], a_posis=[], d_labels=[], d_posis=[]):
     '''
     This function plots Octet data
