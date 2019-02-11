@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import sys
 sys.path.insert(0,'/home/snieblin/work/libspec')
 sys.path.insert(0,'/home/snieblin/work/')
-import libspec
+# import libspec
 import scipy.signal as ssi
 import opusFC as ofc
 from scipy.optimize import curve_fit
