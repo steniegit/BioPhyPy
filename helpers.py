@@ -205,7 +205,7 @@ def gauss(x,center,height,fwhm=10):
     """ Single gaussian function                                     
     """
     c=fwhm/(2*np.sqrt(2*np.log(2)))
-    return height*np.exp(-np.subtract(x,center)**2/(2*(c**2))\
+    return height*np.exp(-(x-center)**2/(2*(c**2))
 )
 
 def extract_int(fn, scalf=1):
@@ -245,6 +245,7 @@ def extract_int(fn, scalf=1):
             tmpline=s[i].split()
             del tmpline[0]
             raman_ortunpol.extend(tmpline)
+        
     # Delete imaginary frequencies
     counter=0
     while "i" in freq[counter]:
@@ -267,10 +268,10 @@ def extract_int(fn, scalf=1):
     ir_int = np.array(list(map(float,ir_int)))
     #freq_scalf = scalf * freq
     # Create structured array
-    out_array = np.zeros(len(freq), 
-                         dtype=[('freq', 'float32'), 
-                                ('freq_scalf', 'float32'), 
-                                ('ir_int', 'float32'), 
+    out_array = np.zeros(len(freq),
+                         dtype=[('freq', 'float32'),
+                                ('freq_scalf', 'float32'),
+                                ('ir_int', 'float32'),
                                 ('raman_parpar', 'float32'),
                                 ('raman_ortort', 'float32'),
                                 ('raman_ortunpol', 'float32')])
@@ -281,16 +282,16 @@ def extract_int(fn, scalf=1):
     out_array['raman_ortort'] = raman_ortort
     out_array['raman_ortunpol'] = raman_ortunpol
     return out_array
-    
+
 def create_spec(ints, x=np.linspace(1000,1900,1000), which_int='raman_parpar'):
     '''
     This inputs a list of frequencies and intensities and
-    outputs an array with the individual gaussian curves 
+    outputs an array with the individual gaussian curves
     '''
     # Initialize array
     arr = np.zeros((len(x), len(ints)))
     # Decide whether to take Raman or IR
-    # Plot spectra                                                
+    # Plot spectra
     for i in range(0,len(ints['freq_scalf'])):
         arr[:,i]= gauss(x,ints['freq_scalf'][i],ints[which_int][i])
     return arr
@@ -724,3 +725,79 @@ def subtract_sol(spec, sol, check=False, which='y_blsub', tol=5, label1='before'
         return out, fig
     else:
         return out, None
+
+
+def read_aoforce(fn):
+    '''
+    This function plots a spectrum 
+    from a Turbomole aoforce file
+    fn: File name
+    fwhm: width of gaussian
+    xlim: plot limits
+    scalf: frequency scaling factor
+    '''
+    # Check if file is there
+    if not os.path.isfile(fn):
+        print("File %s not found! Exiting" % fn)
+        return None
+    # Open file
+    f=open(fn)
+    s=f.readlines()
+    f.close()
+
+    # extract lines with frequencies and intensities
+    freq=[]
+    intensities=[]
+    for i in range(0,len(s)):
+        if '     frequency' in s[i]:
+           tmpline=s[i].split()
+           del tmpline[0]
+           freq.extend(tmpline)
+        if 'intensity (km/mol)  ' in s[i]:
+           tmpline=s[i].split()
+           del tmpline[0]
+           del tmpline[0]
+           intensities.extend(tmpline)
+
+    # Delete imaginary frequencies
+    counter=0
+    while "i" in freq[counter]:
+        print("Imaginary frequency detected! "+ freq[counter])
+        freq[counter]=freq[counter].replace('i','-')
+        counter+=1
+    # Delete rotations and translations
+    freq[0:6]=[]
+    intensities[0:6]=[]
+    
+    # Return values
+    return (np.array(list(map(float,freq))), np.array(list(map(float, intensities,))))
+
+def plot_aoforce(freq, intensities,ax=None, fwhm=20, xlim=(0,4000), scalf=0.9711):
+    '''
+    Plots calculated IR spectrum 
+    generated from Turbomole aoforce
+    ax: 
+    '''
+    # Generate new figure if no axis is given
+    if ax == None:
+        fig, ax = plt.subplots(1)
+        
+    # Initialize spectrum
+    x=np.array(range(*xlim))
+    #specsum1=np.zeros(len(x))
+    specsum=np.zeros(len(x))
+
+    # Plot spectra
+    for i in range(len(freq)):
+        tempg=gauss(x,freq[i],intensities[i], fwhm=fwhm)
+        ax.plot(x,tempg,'k-')
+        specsum += tempg
+        ax.annotate("{:.0f}".format(freq[i]),xy=(freq[i],intensities[i]),ha='center')
+    ax.plot(x,specsum)
+
+    # Adjust plot
+    ax.set_ylabel('Absorbance')
+    ax.set_yticks([])
+    ax.set_xlabel('Wavenumber / cm$^\mathregular{-1}$')
+
+    return (x, specsum,)
