@@ -734,7 +734,6 @@ def read_aoforce(fn):
     fn: File name
     fwhm: width of gaussian
     xlim: plot limits
-    scalf: frequency scaling factor
     '''
     # Check if file is there
     if not os.path.isfile(fn):
@@ -778,6 +777,7 @@ def plot_aoforce(freq, intensities,ax=None, fwhm=20, xlim=(0,4000), scalf=0.9711
     generated from Turbomole aoforce
     ax: 
     '''
+    print("Using a scaling factor of %.5f." % scalf)
     # Generate new figure if no axis is given
     if ax == None:
         fig, ax = plt.subplots(1)
@@ -789,10 +789,10 @@ def plot_aoforce(freq, intensities,ax=None, fwhm=20, xlim=(0,4000), scalf=0.9711
 
     # Plot spectra
     for i in range(len(freq)):
-        tempg=gauss(x,freq[i],intensities[i], fwhm=fwhm)
+        tempg=gauss(x,freq[i]*scalf,intensities[i], fwhm=fwhm)
         ax.plot(x,tempg,'k-')
         specsum += tempg
-        ax.annotate("{:.0f}".format(freq[i]),xy=(freq[i],intensities[i]),ha='center')
+        ax.annotate("{:.0f}".format(freq[i]*scalf),xy=(freq[i]*scalf,intensities[i]),ha='center')
     ax.plot(x,specsum)
 
     # Adjust plot
