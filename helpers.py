@@ -17,6 +17,40 @@ import re
 import glob, os
 from IPython.core.debugger import set_trace
 
+def output_fit(fitvalues_rise, fitvalues_decay):
+    '''
+    This is a simple helper function
+    to sort and output results from a 
+    kinetic fit (Octet).
+    '''
+    # Sort values rise
+    if fitvalues_rise[0] > fitvalues_rise[1]:
+        kobsmax1 = fitvalues_rise[0] / np.sum(fitvalues_rise[:2])
+        kobsmax2 = fitvalues_rise[1] / np.sum(fitvalues_rise[:2])
+        kobs1 = fitvalues_rise[2]
+        kobs2 = fitvalues_rise[3]
+    else:
+        kobsmax1 = fitvalues_rise[1] / np.sum(fitvalues_rise[:2])
+        kobsmax2 = fitvalues_rise[0] / np.sum(fitvalues_rise[:2])
+        kobs1 = fitvalues_rise[3]
+        kobs2 = fitvalues_rise[2]
+    print("k_obs1: %.2E 1/s (k_obs_max1: %.2f)" % (kobs1, kobsmax1))
+    print("k_obs2: %.2E 1/s (k_obs_max2: %.2f)" % (kobs2, kobsmax2))
+    # Sort values decay
+    if fitvalues_decay[0] > fitvalues_decay[1]:
+        kdissmax1 = fitvalues_decay[0] / np.sum(fitvalues_decay[:2])
+        kdissmax2 = fitvalues_decay[1] / np.sum(fitvalues_decay[:2])
+        kdiss1 = fitvalues_decay[2]
+        kdiss2 = fitvalues_decay[3]
+    else:
+        kdissmax1 = fitvalues_decay[1] / np.sum(fitvalues_decay[:2])
+        kdissmax2 = fitvalues_decay[0] / np.sum(fitvalues_decay[:2])
+        kdiss1 = fitvalues_decay[3]
+        kdiss2 = fitvalues_decay[2] 
+    print("k_diss1: %.2E 1/s (k_diss_max1: %.2f)" % (kdiss1, kdissmax1))
+    print("k_diss2: %.2E 1/s (K_diss_max2: %.2f)" % (kdiss2, kdissmax2))  
+    return None
+
 ##### The following four kinetic functions are from Godfrey
 def exp_rise(x, k, c):
     return c*(1 - np.exp(-k*x))
