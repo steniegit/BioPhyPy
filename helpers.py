@@ -17,6 +17,63 @@ import re
 import glob, os
 from IPython.core.debugger import set_trace
 
+def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True):
+    '''
+    Wrapper script to determine KD from 
+    Octet data
+    folder: folder name
+    sensor: which sensor to take
+    seg_rise: segment for rise
+    seg_decay: segment for decay
+    function: 'exp' or 'biexp'
+    '''
+    # Load data
+    rise, rise_time = extract_octetSeg('./experiments/octet/190307_HisCtANTH_ENTH_1/', seg=3, sensor=sensor)
+    decay, decay_time = extract_octetSeg('./experiments/octet/190307_HisCtANTH_ENTH_1/', seg=4, sensor=sensor)
+
+    # Prepare fitting function and starting parameters
+    if func=='biexp':
+        func_rise = biexp_rise
+        func_decay = biexp_decay
+        guess = (0.5, 0.5, 10, 10, 1)
+    elif func=='exp':
+        func_rise = exp_rise
+        func_decay = exp_decay
+        guess = (0.5, 10, 1)
+    else:
+        print("Error: Unknown function!!")
+        return None
+
+    # Perform rise fitting
+    fitvalues_rise, fit_pcov_rise = curve_fit(func_rise, rise_time, rise, p0=guess)
+    fitted_rise = func_rise(rise_time, *fitvalues_rise)
+    r2_rise = r_sq(rise, fitted_rise)
+
+    # Perform exp decay fitting
+    fitvalues_decay, fit_pcov_decay = curve_fit(func_decay, decay_time, decay, p0=guess)
+    fitted_decay = func_decay(decay_time, *fitvalues_decay)
+    r2_decay = r_sq(decay, fitted_decay)
+
+    # Plot data
+    if plot:
+        fig, axs = plt.subplots(2)
+        ax = axs[0]
+        ax.plot(rise_time, rise, '.')
+        ax.plot(rise_time, fitted_rise)
+        ax = axs[1]
+        ax.plot(decay_time, decay, '.')
+        ax.plot(decay_time, fitted_decay)
+        for ax in axs:
+            ax.set_xlabel('Time / s')
+            ax.set_ylabel('Norm. binding')
+
+    # Determine KD
+    output_fit(fitvalues_rise, fitvalues_decay)
+
+    return fitvalues_rise, fitvalues_decay
+    
+    
+
 def extract_octetSeg(folder, seg=3, sensor=1):
     '''
     This extracts a segment from 
