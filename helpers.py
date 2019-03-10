@@ -17,7 +17,7 @@ import re
 import glob, os
 from IPython.core.debugger import set_trace
 
-def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True):
+def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a'):
     '''
     Wrapper script to determine KD from 
     Octet data
@@ -26,10 +26,12 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     seg_rise: segment for rise
     seg_decay: segment for decay
     function: 'exp' or 'biexp'
+    conc: analyte concentration
+    order: 'a' based on fit factor, or 'sort' based on value
     '''
     # Load data
-    rise, rise_time = extract_octetSeg('./experiments/octet/190307_HisCtANTH_ENTH_1/', seg=3, sensor=sensor)
-    decay, decay_time = extract_octetSeg('./experiments/octet/190307_HisCtANTH_ENTH_1/', seg=4, sensor=sensor)
+    rise, rise_time = extract_octetSeg('./experiments/octet/190307_HisCtANTH_ENTH_1/', seg=seg_rise, sensor=sensor)
+    decay, decay_time = extract_octetSeg('./experiments/octet/190307_HisCtANTH_ENTH_1/', seg=seg_decay, sensor=sensor)
 
     # Prepare fitting function and starting parameters
     if func=='biexp':
@@ -66,9 +68,11 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
         for ax in axs:
             ax.set_xlabel('Time / s')
             ax.set_ylabel('Norm. binding')
+    else:
+        fig = None
 
     # Determine KD
-    output_fit(fitvalues_rise, fitvalues_decay)
+    output_fit(fitvalues_rise, fitvalues_decay, conc=conc, order=order)
 
     return fitvalues_rise, fitvalues_decay
     
@@ -103,34 +107,67 @@ def extract_octetSeg(folder, seg=3, sensor=1):
     return segment, seg_time
     
 
-def output_fit(fitvalues_rise, fitvalues_decay, conc=1E-6):
+def output_fit(fitvalues_rise, fitvalues_decay, conc=1E-6, order='a'):
     '''
     This is a simple helper function
     to sort and output results from a 
     kinetic fit (Octet).
+    fitvalues_rise: from fit
+    fitvalues_decay: from fit
+    conc: analyte concentration
+    order: 'a' based on fit factor, or 'sort' based on value
     '''
     # Sort values rise
-    if fitvalues_rise[0] > fitvalues_rise[1]:
-        kobsmax1 = fitvalues_rise[0] / np.sum(fitvalues_rise[:2])
-        kobsmax2 = fitvalues_rise[1] / np.sum(fitvalues_rise[:2])
-        kobs1 = fitvalues_rise[2]
-        kobs2 = fitvalues_rise[3]
+    if order=='a':
+        print('Sorting based on pre-exponential factor')
+        if fitvalues_rise[0] > fitvalues_rise[1]:
+            kobsmax1 = fitvalues_rise[0] / np.sum(fitvalues_rise[:2])
+            kobsmax2 = fitvalues_rise[1] / np.sum(fitvalues_rise[:2])
+            kobs1 = fitvalues_rise[2]
+            kobs2 = fitvalues_rise[3]
+        else:
+            kobsmax1 = fitvalues_rise[1] / np.sum(fitvalues_rise[:2])
+            kobsmax2 = fitvalues_rise[0] / np.sum(fitvalues_rise[:2])
+            kobs1 = fitvalues_rise[3]
+            kobs2 = fitvalues_rise[2]
+        # Sort values decay
+        if fitvalues_decay[0] > fitvalues_decay[1]:
+            kdissmax1 = fitvalues_decay[0] / np.sum(fitvalues_decay[:2])
+            kdissmax2 = fitvalues_decay[1] / np.sum(fitvalues_decay[:2])
+            kdiss1 = fitvalues_decay[2]
+            kdiss2 = fitvalues_decay[3]
+        else:
+            kdissmax1 = fitvalues_decay[1] / np.sum(fitvalues_decay[:2])
+            kdissmax2 = fitvalues_decay[0] / np.sum(fitvalues_decay[:2])
+            kdiss1 = fitvalues_decay[3]
+            kdiss2 = fitvalues_decay[2]
+    elif order=='sort':
+        print('Sorting based on k values')
+        if fitvalues_rise[2] > fitvalues_rise[3]:
+            kobsmax1 = fitvalues_rise[0] / np.sum(fitvalues_rise[:2])
+            kobsmax2 = fitvalues_rise[1] / np.sum(fitvalues_rise[:2])
+            kobs1 = fitvalues_rise[2]
+            kobs2 = fitvalues_rise[3]
+        else:
+            kobsmax1 = fitvalues_rise[1] / np.sum(fitvalues_rise[:2])
+            kobsmax2 = fitvalues_rise[0] / np.sum(fitvalues_rise[:2])
+            kobs1 = fitvalues_rise[3]
+            kobs2 = fitvalues_rise[2]
+        # Sort values decay
+        if fitvalues_decay[2] < fitvalues_decay[3]:
+            kdissmax1 = fitvalues_decay[0] / np.sum(fitvalues_decay[:2])
+            kdissmax2 = fitvalues_decay[1] / np.sum(fitvalues_decay[:2])
+            kdiss1 = fitvalues_decay[2]
+            kdiss2 = fitvalues_decay[3]
+        else:
+            kdissmax1 = fitvalues_decay[1] / np.sum(fitvalues_decay[:2])
+            kdissmax2 = fitvalues_decay[0] / np.sum(fitvalues_decay[:2])
+            kdiss1 = fitvalues_decay[3]
+            kdiss2 = fitvalues_decay[2]
     else:
-        kobsmax1 = fitvalues_rise[1] / np.sum(fitvalues_rise[:2])
-        kobsmax2 = fitvalues_rise[0] / np.sum(fitvalues_rise[:2])
-        kobs1 = fitvalues_rise[3]
-        kobs2 = fitvalues_rise[2]
-    # Sort values decay
-    if fitvalues_decay[0] > fitvalues_decay[1]:
-        kdissmax1 = fitvalues_decay[0] / np.sum(fitvalues_decay[:2])
-        kdissmax2 = fitvalues_decay[1] / np.sum(fitvalues_decay[:2])
-        kdiss1 = fitvalues_decay[2]
-        kdiss2 = fitvalues_decay[3]
-    else:
-        kdissmax1 = fitvalues_decay[1] / np.sum(fitvalues_decay[:2])
-        kdissmax2 = fitvalues_decay[0] / np.sum(fitvalues_decay[:2])
-        kdiss1 = fitvalues_decay[3]
-        kdiss2 = fitvalues_decay[2]
+        print('Order string not recognized! Exiting!')
+        return None
+        
     # Calculate kons from kobs, kdiss and conc
     kon1 = (kobs1 + kdiss1)/conc
     kon2 = (kobs2 + kdiss2)/conc
@@ -142,6 +179,7 @@ def output_fit(fitvalues_rise, fitvalues_decay, conc=1E-6):
     print("k_obs2: %.2E 1/s (k_obs_max2: %.2f)" % (kobs2, kobsmax2))    
     print("k_diss1: %.2E 1/s (k_diss_max1: %.2f)" % (kdiss1, kdissmax1))
     print("k_diss2: %.2E 1/s (K_diss_max2: %.2f)" % (kdiss2, kdissmax2))
+    print("c(analyte) = %.2E M" % conc)
     print("k_on1: %.2E 1/sM" % (kon1))
     print("k_on2: %.2E 1/sM" % (kon2))
     print("KD1: %.2E M" % KD1)
