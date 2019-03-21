@@ -52,12 +52,20 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
         return None
 
     # Perform rise fitting
-    fitvalues_rise, fit_pcov_rise = curve_fit(func_rise, rise_time, rise, p0=guess)
+    try:
+        fitvalues_rise, fit_pcov_rise = curve_fit(func_rise, rise_time, rise, p0=guess)
+    except:
+        print("Could not fit data. Exiting")
+        return None, None
     fitted_rise = func_rise(rise_time, *fitvalues_rise)
     r2_rise = r_sq(rise, fitted_rise)
 
     # Perform exp decay fitting
-    fitvalues_decay, fit_pcov_decay = curve_fit(func_decay, decay_time, decay, p0=guess)
+    try:
+        fitvalues_decay, fit_pcov_decay = curve_fit(func_decay, decay_time, decay, p0=guess)
+    except:
+        print("Could not fit data. Exiting")
+        return None, None
     fitted_decay = func_decay(decay_time, *fitvalues_decay)
     r2_decay = r_sq(decay, fitted_decay)
 
@@ -80,7 +88,7 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
         fig = None
 
     # Determine KD
-    output_fit(fitvalues_rise, fitvalues_decay, conc=conc, order=order)
+    output_fit(fitvalues_rise, fitvalues_decay, r2_rise=r2_rise, r2_decay=r2_decay, conc=conc, order=order)
 
     return fitvalues_rise, fitvalues_decay
     
@@ -116,7 +124,7 @@ def extract_octetSeg(folder, seg=3, sensor=1, norm=True):
     return segment, seg_time
     
 
-def output_fit(fitvalues_rise, fitvalues_decay, conc=1E-6, order='a'):
+def output_fit(fitvalues_rise, fitvalues_decay, r2_rise=np.nan, r2_decay=np.nan, conc=1E-6, order='a'):
     '''
     This is a simple helper function
     to sort and output results from a 
@@ -204,9 +212,13 @@ def output_fit(fitvalues_rise, fitvalues_decay, conc=1E-6, order='a'):
         KD2  = kdiss2 / kon2
         # Print results
         print("k_obs1: %.2E 1/s (k_obs_max1: %.2f)" % (kobs1, kobsmax1))
-        print("k_obs2: %.2E 1/s (k_obs_max2: %.2f)" % (kobs2, kobsmax2))    
+        print("k_obs2: %.2E 1/s (k_obs_max2: %.2f)" % (kobs2, kobsmax2))
+        if not np.isnan(r2_rise):
+            print("R2 for rise: %.4f" % r2_rise)
         print("k_diss1: %.2E 1/s (k_diss_max1: %.2f)" % (kdiss1, kdissmax1))
         print("k_diss2: %.2E 1/s (K_diss_max2: %.2f)" % (kdiss2, kdissmax2))
+        if not np.isnan(r2_decay):
+            print("R2 for rise: %.4f" % r2_decay)
         print("c(analyte) = %.2E M" % conc)
         print("k_on1: %.2E 1/sM" % (kon1))
         print("k_on2: %.2E 1/sM" % (kon2))
@@ -219,7 +231,11 @@ def output_fit(fitvalues_rise, fitvalues_decay, conc=1E-6, order='a'):
         KD  = kdiss / kon
         # Print results
         print("k_obs: %.2E 1/s (k_obs_max: %.2f)" % (kobs, kobsmax))
+        if not np.isnan(r2_rise):
+            print("R2 for rise: %.4f" % r2_rise)
         print("k_diss: %.2E 1/s (k_diss_max: %.2f)" % (kdiss, kdissmax))
+        if not np.isnan(r2_decay):
+            print("R2 for rise: %.4f" % r2_decay)        
         print("c(analyte) = %.2E M" % conc)
         print("k_on: %.2E 1/sM" % (kon))
         print("KD: %.2E M" % KD)
