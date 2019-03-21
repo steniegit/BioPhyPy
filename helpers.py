@@ -31,8 +31,12 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     norm: Normalize values (0-1)
     '''
     # Load data
-    rise, rise_time = extract_octetSeg('./experiments/octet/190307_HisCtANTH_ENTH_1/', seg=seg_rise, sensor=sensor, norm=norm)
-    decay, decay_time = extract_octetSeg('./experiments/octet/190307_HisCtANTH_ENTH_1/', seg=seg_decay, sensor=sensor, norm=norm)
+    try:
+        rise, rise_time = extract_octetSeg(folder, seg=seg_rise, sensor=sensor, norm=norm)
+        decay, decay_time = extract_octetSeg(folder, seg=seg_decay, sensor=sensor, norm=norm)
+    except:
+        print("Could not load data! Exiting")
+        return None, None
 
     # Prepare fitting function and starting parameters
     if func=='biexp':
@@ -252,6 +256,14 @@ def get_octet(data_folder=''):
     '''
     if len(data_folder) == 0:
         print("Please specify data folder!\n Exiting")
+        return None
+    # Check if folder exists
+    if (not os.path.isdir(data_folder)):
+        raise Exception("Folder does not exist!")
+        return None
+    # Check if file is there
+    if not (os.path.isfile(data_folder + '/RawData0.xls')):
+        raise Exception("File %s not found! Exiting" % fn)
         return None
     # Load data
     data = np.genfromtxt(data_folder + 'RawData0.xls', skip_header=2)
