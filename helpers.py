@@ -92,8 +92,6 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
 
     return fitvalues_rise, fitvalues_decay
     
-    
-
 def extract_octetSeg(folder, seg=3, sensor=1, norm=True):
     '''
     This extracts a segment from 
@@ -302,7 +300,7 @@ def get_octet(data_folder=''):
     return data, act_times
     
 
-def plot_octet(data_folder='', seg_labels=['BL1', 'Load', 'BL2', 'Assoc.', 'Diss.'], ptitle='', legs='', l_labels=[], l_posis=[], b_labels=[], b_posis=[], a_labels=[], a_posis=[], d_labels=[], d_posis=[]):
+def plot_octet(data_folder='', seg_labels=['BL1', 'Load', 'BL2', 'Assoc.', 'Diss.'], ptitle='', legs='', l_labels=[], l_posis=[], b_labels=[], b_posis=[], a_labels=[], a_posis=[], d_labels=[], d_posis=[], sensors=[]):
     '''
     This function plots Octet data
       Input:
@@ -349,7 +347,12 @@ def plot_octet(data_folder='', seg_labels=['BL1', 'Load', 'BL2', 'Assoc.', 'Diss
 
     # Plot data
     hps = [] # Plot handles
-    for i in range(data.shape[1]//2-1): # Last two columns contain temperature information
+    if len(sensors) == 0:
+        sensors = range(data.shape[1]//2-1)
+        plot_it = True
+    else:
+        plot_it = False
+    for i in sensors: # Last two columns contain temperature information
         if len(legs)>0:
             hp, = ax.plot(data[:,i*2],data[:,i*2+1], label=legs[i], lw=1)
         else:
@@ -399,8 +402,11 @@ def plot_octet(data_folder='', seg_labels=['BL1', 'Load', 'BL2', 'Assoc.', 'Diss
     #ax.grid()
 
     # Save figure
-    fig.savefig(data_folder + '/' + data_folder.split('/')[-2] + '.pdf')
-    print("Figure saved as %s" % (data_folder + '/' + data_folder.split('/')[-2] + '.pdf'))
+    if plot_it:
+        fig.savefig(data_folder + '/' + data_folder.split('/')[-2] + '.pdf')
+        print("Figure saved as %s" % (data_folder + '/' + data_folder.split('/')[-2] + '.pdf'))
+    else:
+        print("Figure not saved!")
 
     return fig, ax
         
