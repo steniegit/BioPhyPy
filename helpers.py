@@ -16,8 +16,9 @@ import ipdb
 import re
 import glob, os
 from IPython.core.debugger import set_trace
+import pickle
 
-def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True):
+def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True, ptitle='', leg=''):
     '''
     Wrapper script to determine KD from 
     Octet data
@@ -88,9 +89,27 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
         fig = None
 
     # Determine KD
-    output_fit(fitvalues_rise, fitvalues_decay, r2_rise=r2_rise, r2_decay=r2_decay, conc=conc, order=order)
-
-    return fitvalues_rise, fitvalues_decay
+    fit = output_fit(fitvalues_rise, fitvalues_decay, r2_rise=r2_rise, r2_decay=r2_decay, conc=conc, order=order)
+    # Extend fit dictionary
+    fit['decay_time']   = decay_time
+    fit['decay']        = decay
+    fit['fitted_decay'] = fitted_decay
+    fit['rise_time']    = rise_time
+    fit['rise']         = rise
+    fit['fitted_rise']  = fitted_rise
+    fit['seg_rise']     = seg_rise
+    fit['seg_decay']    = seg_decay
+    fit['func']         = func
+    fit['order']        = order
+    fit['sensor']       = sensor
+    fit['folder']       = folder
+    fit['ptitle']       = ptitle
+    fit['leg']          = leg
+    # Save dictionary in fits
+    fn_pickle = "fits/" + folder.replace('./','').replace('/', '_') + "sensor%i_riseseg%i_decayseg%i_func%s.p" % (sensor, seg_rise, seg_decay, func)
+    pickle.dump(fit, open(fn_pickle, 'wb'))
+    print("Fit results saved in %s" % fn_pickle)
+    return fitvalues_rise, fitvalues_decay, fit
     
 def extract_octetSeg(folder, seg=3, sensor=1, norm=True):
     '''
@@ -144,6 +163,8 @@ def output_fit(fitvalues_rise, fitvalues_decay, r2_rise=np.nan, r2_decay=np.nan,
     else:
         print("Parameter of unknown function given! Exiting")
         return None
+    # Create dictionary with fit values
+    fit = {}
     # If biexponential fit: Sort values
     if func == 'exp':
         kobs  = fitvalues_rise[0]
@@ -222,6 +243,18 @@ def output_fit(fitvalues_rise, fitvalues_decay, r2_rise=np.nan, r2_decay=np.nan,
         print("k_on2: %.2E 1/sM" % (kon2))
         print("KD1: %.2E M" % KD1)
         print("KD2: %.2E M" % KD2)
+        fit = {'k_obs1':  kobs1,
+               'k_obs2':  kobs2,
+               'k_diss1': kdiss1,
+               'k_diss2': kdiss2,
+               'r2_rise': r2_rise,
+               'r2_decay': r2_decay,
+               'conc': conc,
+               'k_on1': kon1,
+               'k_on2': kon2,
+               'KD1': KD1,
+               'KD2': KD2
+        }
     elif func == 'exp':
         # Calculate kons from kobs, kdiss and conc
         kon = (kobs + kdiss)/conc
@@ -237,7 +270,15 @@ def output_fit(fitvalues_rise, fitvalues_decay, r2_rise=np.nan, r2_decay=np.nan,
         print("c(analyte) = %.2E M" % conc)
         print("k_on: %.2E 1/sM" % (kon))
         print("KD: %.2E M" % KD)
-    return None
+        fit = {'k_obs':  kobs,
+               'k_diss': kdiss,
+               'r2_rise': r2_rise,
+               'r2_decay': r2_decay,
+               'conc': conc,
+               'k_on': kon,
+               'KD': KD,
+        }
+    return fit
 
 ##### The following four kinetic functions are from Godfrey
 def exp_rise(x, k, c):
@@ -348,10 +389,11 @@ def plot_octet(data_folder='', seg_labels=['BL1', 'Load', 'BL2', 'Assoc.', 'Diss
     # Plot data
     hps = [] # Plot handles
     if len(sensors) == 0:
-        sensors = range(data.shape[1]//2-1)
+        sensors = np.arange(data.shape[1]//2-1)
         plot_it = True
     else:
         plot_it = False
+        sensors = np.array(sensors)
     for i in sensors: # Last two columns contain temperature information
         if len(legs)>0:
             hp, = ax.plot(data[:,i*2],data[:,i*2+1], label=legs[i], lw=1)
@@ -382,7 +424,7 @@ def plot_octet(data_folder='', seg_labels=['BL1', 'Load', 'BL2', 'Assoc.', 'Diss
     # Add labels
     for i in range(len(act_times)):
         pos = (act_times[i] - np.min(act_times))
-        ax.text(middles[i], np.max(data[:,1::2])*1.07, seg_labels[i], ha='center')
+        ax.text(middles[i], np.max(data[:,sensors*2+1])*1.07, seg_labels[i], ha='center')
     # Labels in loading
     for i in range(len(l_labels)): 
         ax.text(middles[1]*1.1, l_posis[i], l_labels[i], ha='center', color=hps[i].get_color()) # ,bbox=dict(facecolor='white', alpha=.5) $\,\mu$g/ml #bbox=dict(facecolor='white', alpha=.5)
