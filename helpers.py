@@ -55,7 +55,7 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
 
     # Perform rise fitting
     try:
-        fitvalues_rise, fit_pcov_rise = curve_fit(func_rise, rise_time, rise, p0=guess)
+        fitvalues_rise, fit_pcov_rise = curve_fit(func_rise, rise_time, rise, p0=guess, bounds=(0, np.inf))
     except:
         print("Could not fit data. Exiting")
         return None, None
@@ -64,7 +64,7 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
 
     # Perform exp decay fitting
     try:
-        fitvalues_decay, fit_pcov_decay = curve_fit(func_decay, decay_time, decay, p0=guess)
+        fitvalues_decay, fit_pcov_decay = curve_fit(func_decay, decay_time, decay, p0=guess, bounds=(0, np.inf))
     except:
         print("Could not fit data. Exiting")
         return None, None
@@ -240,7 +240,7 @@ def output_fit(fitvalues_rise, fitvalues_decay, r2_rise=np.nan, r2_decay=np.nan,
         print("k_diss1: %.2E 1/s (k_diss_max1: %.2f)" % (kdiss1, kdissmax1))
         print("k_diss2: %.2E 1/s (K_diss_max2: %.2f)" % (kdiss2, kdissmax2))
         if not np.isnan(r2_decay):
-            print("R2 for rise: %.4f" % r2_decay)
+            print("R2 for decay: %.4f" % r2_decay)
         print("c(analyte) = %.2E M" % conc)
         print("k_on1: %.2E 1/sM" % (kon1))
         print("k_on2: %.2E 1/sM" % (kon2))
