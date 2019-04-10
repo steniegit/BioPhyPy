@@ -18,7 +18,7 @@ import glob, os
 from IPython.core.debugger import set_trace
 import pickle
 
-def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True, ptitle='', leg=''):
+def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True, ptitle='', leg='', save_all=False, loading=np.NaN):
     '''
     Wrapper script to determine KD from 
     Octet data
@@ -30,6 +30,7 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     conc: analyte concentration
     order: 'a' based on fit factor, or 'sort' based on value
     norm: Normalize values (0-1)
+    save_all: if this is True, then also the rise/decay and the fitted rise/decay are saved ! This takes space!!!
     '''
     # Load data
     try:
@@ -91,12 +92,13 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     # Determine KD
     fit = output_fit(fitvalues_rise, fitvalues_decay, r2_rise=r2_rise, r2_decay=r2_decay, conc=conc, order=order)
     # Extend fit dictionary
-    fit['decay_time']   = decay_time
-    fit['decay']        = decay
-    fit['fitted_decay'] = fitted_decay
-    fit['rise_time']    = rise_time
-    fit['rise']         = rise
-    fit['fitted_rise']  = fitted_rise
+    if save_all:
+        fit['decay_time']   = decay_time
+        fit['decay']        = decay
+        fit['fitted_decay'] = fitted_decay
+        fit['rise_time']    = rise_time
+        fit['rise']         = rise
+        fit['fitted_rise']  = fitted_rise
     fit['seg_rise']     = seg_rise
     fit['seg_decay']    = seg_decay
     fit['func']         = func
@@ -105,6 +107,7 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     fit['folder']       = folder
     fit['ptitle']       = ptitle
     fit['leg']          = leg
+    fit['loading']      = loading
     # Save dictionary in fits
     fn_pickle = "fits/" + folder.replace('./','').replace('/', '_') + "sensor%i_riseseg%i_decayseg%i_func%s.p" % (sensor, seg_rise, seg_decay, func)
     pickle.dump(fit, open(fn_pickle, 'wb'))
@@ -245,8 +248,12 @@ def output_fit(fitvalues_rise, fitvalues_decay, r2_rise=np.nan, r2_decay=np.nan,
         print("KD2: %.2E M" % KD2)
         fit = {'k_obs1':  kobs1,
                'k_obs2':  kobs2,
+               'k_obsmax1': kobsmax1,
+               'k_obsmax2': kobsmax2,
                'k_diss1': kdiss1,
                'k_diss2': kdiss2,
+               'k_dissmax1': kdissmax1,
+               'k_dissmax2': kdissmax2,
                'r2_rise': r2_rise,
                'r2_decay': r2_decay,
                'conc': conc,
@@ -271,7 +278,9 @@ def output_fit(fitvalues_rise, fitvalues_decay, r2_rise=np.nan, r2_decay=np.nan,
         print("k_on: %.2E 1/sM" % (kon))
         print("KD: %.2E M" % KD)
         fit = {'k_obs':  kobs,
+               'k_obsmax': kobsmax,
                'k_diss': kdiss,
+               'k_dissmax': kdissmax,
                'r2_rise': r2_rise,
                'r2_decay': r2_decay,
                'conc': conc,
