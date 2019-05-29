@@ -17,6 +17,59 @@ import re
 import glob, os
 from IPython.core.debugger import set_trace
 import pickle
+import pandas as pd
+import itertools, copy
+
+def read_dls(folder):
+    '''
+    This function reads DLS spectra acquired with an xtal instrument
+    and returns a pandas DataFrame
+
+    This DataFrame contains the following columns
+    pos: Position on plate (e.g. A1)
+    pos_row: row on plate (e.g. A)
+    pos_col: column on plate (e.g. 1)
+    fn: filename
+    runnr: Number of repeat
+    acf: autocorrelation function
+    fit: fit of autocorrelation function
+    dis: population histogram
+    '''
+    # Find files in folder
+    # Find files
+    fns = glob.glob(folder + '/*T4L-*.dat')
+    fns.sort()
+    # Create list for dictionary
+    runs = []
+    for fn in fns:
+        # Extract position
+        pos = fn.split('.')[0].split('-')[-1]
+        row = pos[0]
+        column = int(pos[1:])
+        runnr = int(fn.split('.')[1].split('-')[1])
+        with open(fn, 'r') as f:
+            # Get acf
+            acf = list(itertools.takewhile(lambda x: '&' not in x, 
+                itertools.dropwhile(lambda x: '#acf0' not in x, f)))
+            # Get fit 
+            fit = list(itertools.takewhile(lambda x: '&' not in x, 
+                itertools.dropwhile(lambda x: '#fit0' not in x, f)))
+            # Get dis0 
+            dis = list(itertools.takewhile(lambda x: '&' not in x, 
+                itertools.dropwhile(lambda x: '#dis0' not in x, f)))
+        acf = np.array([list(map(float, b.split())) for b in acf[1:]])       
+        fit = np.array([list(map(float, b.split())) for b in fit[1:]])
+        dis = np.array([list(map(float, b.split())) for b in dis[1:]])
+        # Create dictionary
+        temp_dic = {'pos_row': row, 'pos_col': column, 'acf': acf, 'fit': fit, 'dis': dis, 'fn': fn, 'runnr': runnr, 'pos': pos}
+        runs.append(copy.deepcopy(temp_dic))
+    # Convert to pandas DataFrame
+    runs = pd.DataFrame(runs)
+    # Rearrange
+    runs = runs[['pos', 'runnr', 'fn', 'pos_row', 'pos_col', 'acf', 'fit', 'dis']]
+    # Sort
+    runs = runs.sort_values(['pos_row', 'pos_col', 'runnr']).reset_index(drop=True)
+    return runs
 
 def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True, ptitle='', leg='', save_all=False, loading=np.NaN):
     '''
