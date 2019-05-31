@@ -20,6 +20,161 @@ import pickle
 import pandas as pd
 import itertools, copy
 
+class DLS_Data():
+
+    def __init__(self, folder='', verbose=False):
+        self.folder = folder
+        # Load data and do outlier rejection
+        self.load(verbose=verbose)
+        self.reject_incomplete()
+        return None
+        
+    def load(self, verbose=False):
+        # Find files in folder
+        fns = glob.glob(self.folder + '/*.dat')
+        print("Found %i files in folder %s" % (len(fns), self.folder))
+        fns.sort()
+        # Create list for dictionary
+        run, acf, acf_x, fit, fit_x, dis, dis_x, pos, row, col = [], [], [], [], [], [], [], [], [], []
+        for fn in fns:
+            # Extract position
+            pos_ = fn.split('.')[0].split('-')[-1]
+            row_ = pos_[0]
+            col_ = int(pos_[1:])
+            run_ = int(fn.split('.')[1].split('-')[1])
+            with open(fn, 'r') as f:
+                # Get acf
+                acf_ = list(itertools.takewhile(lambda x: '&' not in x, 
+                                                itertools.dropwhile(lambda x: '#acf0' not in x, f)))
+                # Get fit 
+                fit_ = list(itertools.takewhile(lambda x: '&' not in x, 
+                                                itertools.dropwhile(lambda x: '#fit0' not in x, f)))
+                # Get dis0 
+                dis_ = list(itertools.takewhile(lambda x: '&' not in x, 
+                                                itertools.dropwhile(lambda x: '#dis0' not in x, f)))
+            acf_ = np.array([list(map(float, b.split())) for b in acf_[1:]])
+            fit_ = np.array([list(map(float, b.split())) for b in fit_[1:]])
+            dis_ = np.array([list(map(float, b.split())) for b in dis_[1:]])
+            # Fill lists
+            run.append(run_)
+            acf.append(acf_)
+            #acf_x = acf_[:,0]
+            fit.append(fit_)
+            #fit_x = fit_[:,0]
+            dis.append(dis_)
+            #dis_x = dis_[:,0]
+            pos.append(pos_)
+            row.append(row_)
+            col.append(col_)
+        # Fill class 
+        self.fns = fns
+        self.run = run
+        self.acf = acf
+        self.fit = fit
+        self.dis = dis
+        self.pos = pos
+        self.row = row
+        self.col = col
+        self.keep = np.ones(len(self.pos))
+        self.out = np.zeros(len(self.pos))
+        return None
+
+    def reject_incomplete(self, verbose=False):
+        '''
+        This is to remove incomplete acf scans
+        '''
+        # Get list with lengths
+        acf_size = []
+        for i in self.acf:
+            acf_size.append(len(i))
+        acf_size = np.array(acf_size)
+        self.acf_size = acf_size
+        # Determine median and throw out all non-median values
+        size_median = int(np.median(self.acf_size))
+        indices = np.argwhere(self.acf_size == size_median).squeeze()
+        out_ind = np.argwhere(self.acf_size != size_median).squeeze()
+        if verbose:
+            print("Remove %i out of %i entries due to inconsistent acf length" % (len(self.run) - len(indices), len(self.run)))
+            for index in out_ind:
+                print(self.fns[index])
+        # Modify entries
+        self.run   = np.array([self.run[index] for index in indices])
+        self.acf_x = np.array(self.acf[0][:,0])
+        self.acf   = np.array([self.acf[index][:,1] for index in indices]).T
+        self.fit   = [self.fit[index] for index in indices]
+        #self.fit_x = np.array(self.fit[0][:,0])
+        #self.fit   = np.array([self.fit[index][:,1] for index in indices])
+        self.dis_x = np.array(self.dis[0][:,0])
+        self.dis   = [self.dis[index] for index in indices]
+        self.pos   = np.array([self.pos[index] for index in indices])
+        self.row   = np.array([self.row[index] for index in indices])
+        self.col   = np.array([self.col[index] for index in indices])
+        self.fns   = np.array([self.fns[index] for index in indices])
+        self.keep  = self.keep[indices]
+        self.out   = self.out[indices]
+        return None
+
+    def reject_outliers_acf(self, tol='3percent', verbose=False):
+        '''
+        Outlier rejection based on acf 
+        @param tol: The tolerance cutoff. Can be 'XXpercent' or 'XXunits', where XX is a number in any 
+        format. With 'percent', the cutoff is defined as a percentage of the median, with 'units' it is
+        absolute. All exposures for which the q-averaged scattering falls further than one cutoff 
+        distance from the median are rejected.
+        '''
+        # Tolerance factor
+        if 'percent' in tol:
+            tol_fact = float(tol.split('percent')[0]) * .01
+        else:
+            raise Exception('Bad input')
+        
+        # Loop through positions
+        for pos in np.unique(self.pos):
+            # calculate median and tolerances, here we take mean
+            mean = np.median(self.acf[:, self.pos==pos], axis=1).reshape((-1,1)) 
+            # work out which repeats to keep:
+            # keep = np.arange(len(statistics))[np.abs(statistics-mean) < tolerance]
+            keep = np.sum(np.abs(self.acf[:,self.pos==pos]-mean), axis=0) < tol_fact * np.sum(np.abs(mean))
+            self.keep[self.pos==pos] = keep
+            self.out[self.pos==pos] = np.invert(keep)
+            if verbose:
+                print('%s: RejectS() rejected %u out of %u repeats (%.0f%%)'%(pos, np.sum(self.pos==pos)-np.sum(keep), np.sum(self.pos==pos), float(np.sum(self.pos==pos)-np.sum(keep))/np.sum(self.pos==pos)*100))
+        self.keep = self.keep.astype('int')
+        self.out = self.out.astype('int')
+        return None
+
+    def average_pos(self, plot=False):
+        acf_average, pos_average = [], []
+        for pos in np.unique(self.pos):
+            if np.sum(self.pos==pos) < 2:
+                print('%s: Less than 2 spectra available (before outlier rejection). Cannot do averaging' % pos)
+                continue
+            else:
+                if np.sum(self.keep[self.pos==pos])>1:
+                    sub = self.acf[:,self.pos==pos]
+                    sub_in = sub[:, np.argwhere(self.keep[self.pos==pos]).squeeze()]
+                    sub_out = sub[:, np.argwhere(self.out[self.pos==pos]).squeeze()]
+                    sub_av = np.average(sub_in, axis=1)
+                    acf_average.append(sub_av)
+                    pos_average.append(pos)
+                    if plot:
+                        # Plot
+                        fig, ax = plt.subplots(1)
+                        h1 = ax.semilogx(self.acf_x, sub_in, label='Keep (%i)' % np.sum(self.keep[self.pos==pos]), color='green', lw=.5, alpha=.5)
+                        h2 = ax.semilogx(self.acf_x, acf_average[-1], label='average', color='blue', lw=2, alpha=.5)
+                        if np.sum(self.out[self.pos==pos]) > 0:
+                            h3 = ax.semilogx(self.acf_x, sub_out, label='Out (%i)' % np.sum(self.out[self.pos==pos]), color='red', lw=.5, alpha=.5)
+                            ax.legend(handles=[h1[0], h3[0], h2[0]])
+                        else:
+                            ax.legend(handles=[h1[0],  h2[0]])
+                        ax.set_title(pos)
+                    #pdb.set_trace()
+                else:
+                    print("%s: Not more than one accepted spectrum available. Cannot do averaging" % pos)
+        self.acf_average = acf_average
+        self.pos_average = pos_average
+                
+    
 def read_dls(folder):
     '''
     This function reads DLS spectra acquired with an xtal instrument
@@ -36,8 +191,8 @@ def read_dls(folder):
     dis: population histogram
     '''
     # Find files in folder
-    # Find files
-    fns = glob.glob(folder + '/*T4L-*.dat')
+    fns = glob.glob(folder + '/*.dat')
+    print("Found %i files in folder %s" % (len(fns), folder))
     fns.sort()
     # Create list for dictionary
     runs = []
@@ -61,12 +216,12 @@ def read_dls(folder):
         fit = np.array([list(map(float, b.split())) for b in fit[1:]])
         dis = np.array([list(map(float, b.split())) for b in dis[1:]])
         # Create dictionary
-        temp_dic = {'pos_row': row, 'pos_col': column, 'acf': acf, 'fit': fit, 'dis': dis, 'fn': fn, 'runnr': runnr, 'pos': pos}
+        temp_dic = {'pos_row': row, 'pos_col': column, 'acf': acf, 'fit': fit, 'dis': dis, 'fn': fn, 'runnr': runnr, 'pos': pos, 'keep': True}
         runs.append(copy.deepcopy(temp_dic))
     # Convert to pandas DataFrame
     runs = pd.DataFrame(runs)
     # Rearrange
-    runs = runs[['pos', 'runnr', 'fn', 'pos_row', 'pos_col', 'acf', 'fit', 'dis']]
+    runs = runs[['pos', 'runnr', 'fn', 'pos_row', 'pos_col', 'acf', 'fit', 'dis', 'keep']]
     # Sort
     runs = runs.sort_values(['pos_row', 'pos_col', 'runnr']).reset_index(drop=True)
     return runs
