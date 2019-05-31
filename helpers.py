@@ -167,12 +167,15 @@ class DLS_Data():
                             ax.legend(handles=[h1[0], h3[0], h2[0]])
                         else:
                             ax.legend(handles=[h1[0],  h2[0]])
+                        ax.set_xlabel('Time / s')
+                        ax.set_ylabel('ACF')
+                        ax.set_xlim([np.min(self.acf_x), np.max(self.acf_x)])
                         ax.set_title(pos)
                     #pdb.set_trace()
                 else:
                     print("%s: Not more than one accepted spectrum available. Cannot do averaging" % pos)
-        self.acf_average = acf_average
-        self.pos_average = pos_average
+        self.acf_average = np.array(acf_average)
+        self.pos_average = np.array(pos_average)
                 
     
 def read_dls(folder):
