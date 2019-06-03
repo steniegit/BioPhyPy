@@ -5,6 +5,7 @@ This module contains helpful functions used by the libspec module
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 import sys
 sys.path.insert(0,'/home/snieblin/work/libspec')
 sys.path.insert(0,'/home/snieblin/work/')
@@ -22,8 +23,16 @@ import itertools, copy
 
 class DLS_Data():
     
-    def __init__(self, folder='', verbose=False):
+    def __init__(self, folder='', verbose=False, labels={}, pfolder=''):
+        '''
+        Initialize dls data
+        folder: Folder with dat files
+        labels: dictionary with labels (optional for plotting)
+        pfolder: folder with pictures (optional)
+        '''
         self.folder = folder
+        self.labels = labels
+        self.pfolder = pfolder
         # Load data and do outlier rejection
         self.load(verbose=verbose)
         self.reject_incomplete()
@@ -35,10 +44,16 @@ class DLS_Data():
         print("Found %i files in folder %s" % (len(fns), self.folder))
         fns.sort()
         # Create list for dictionary
-        run, acf, acf_x, fit, fit_x, dis, dis_x, pos, spos, row, col = [], [], [], [], [], [], [], [], [], [], []
+        run, acf, acf_x, fit, fit_x, dis, dis_x, pos, spos, row, col, pics = [], [], [], [], [], [], [], [], [], [], [], []
         for fn in fns:
             # Extract position
             pos_ = fn.split('.')[0].split('-')[-1]
+            pfns_ = self.pfolder + '/' + pos_ + '-0.png'
+            if os.path.isfile(pfns_):
+                #print("Picture %s found!" % pfns_)
+                pics.append(pfns_)
+            else:
+                pics.append('')
             # Create second position with zero filling (easier for sorting later)
             spos_ = pos_[0] + pos_[1:].zfill(2)
             # Row, columns and run numbers
@@ -84,6 +99,7 @@ class DLS_Data():
         self.col = [col[i] for i in inds]
         self.keep = np.ones(len(self.pos))
         self.out = np.zeros(len(self.pos))
+        self.pics = pics
         return None
     
     def reject_incomplete(self, verbose=False):
@@ -123,6 +139,7 @@ class DLS_Data():
         self.fns   = np.array([self.fns[index] for index in indices])
         self.keep  = self.keep[indices]
         self.out   = self.out[indices]
+        self.pics  = np.array([self.pics[index] for index in indices])
         return None
 
     def reject_outliers_acf(self, tol='3percent', verbose=False):
@@ -156,14 +173,16 @@ class DLS_Data():
         self.out = self.out.astype('int')
         return None
 
-    def average_pos(self, plot=False, plotall=False):
+    def average_pos(self, plot=False, plotall=False, savefig=False):
         '''
         Averages acf for each position
         plot: Plot results
         plotall: Even plot positions averaging cannot be done (e.g. only one spectrum or only outliers)
+        savefig: saves each position as pos.pdf
         '''
         acf_average, pos_average = [], []
-        for pos in np.unique(self.pos):
+        for spos in np.unique(self.spos):
+            pos = self.pos[self.spos==spos][0]
             if np.sum(self.pos==pos) < 2:
                 print('%s: Less than 2 spectra available (before outlier rejection). Cannot do averaging' % pos)
                 if plotall:
@@ -174,10 +193,12 @@ class DLS_Data():
                     if np.sum(self.out[self.pos==pos]) > 0:
                         h3 = ax.semilogx(self.acf_x, sub_out, label='Out (%i)' % np.sum(self.out[self.pos==pos]), color='red', lw=.5, alpha=.5)
                     ax.legend()
+                    fig.savefig(pos + '_avg.pdf')
                 continue
             else:
                 if np.sum(self.keep[self.pos==pos])>1:
                     sub = self.acf[:,self.pos==pos]
+                    pic = self.pics[self.pos==pos][0]
                     sub_in = sub[:, np.argwhere(self.keep[self.pos==pos]).squeeze()]
                     sub_out = sub[:, np.argwhere(self.out[self.pos==pos]).squeeze()]
                     sub_av = np.average(sub_in, axis=1)
@@ -187,7 +208,7 @@ class DLS_Data():
                         # Plot
                         fig, ax = plt.subplots(1)
                         h1 = ax.semilogx(self.acf_x, sub_in, label='Keep (%i)' % np.sum(self.keep[self.pos==pos]), color='green', lw=.5, alpha=.5)
-                        h2 = ax.semilogx(self.acf_x, acf_average[-1], label='average', color='blue', lw=2, alpha=.5)
+                        h2 = ax.semilogx(self.acf_x, acf_average[-1], label='Average', color='blue', lw=2, alpha=.5)
                         if np.sum(self.out[self.pos==pos]) > 0:
                             h3 = ax.semilogx(self.acf_x, sub_out, label='Out (%i)' % np.sum(self.out[self.pos==pos]), color='red', lw=.5, alpha=.5)
                             ax.legend(handles=[h1[0], h3[0], h2[0]])
@@ -196,7 +217,17 @@ class DLS_Data():
                         ax.set_xlabel('Time / s')
                         ax.set_ylabel('ACF')
                         ax.set_xlim([np.min(self.acf_x), np.max(self.acf_x)])
-                        ax.set_title(pos)
+                        try:
+                            label = pos + ': ' +self.labels[pos]
+                        except:
+                            label = pos 
+                        ax.set_title(label)
+                        if len(pic) > 0:
+                            pic = mpimg.imread(pic)
+                            ax_pic = fig.add_axes([.3, .46, .4, .4])
+                            ax_pic.imshow(pic)
+                            ax_pic.axis('off')
+                        fig.savefig(pos + '_avg.pdf')
                     #pdb.set_trace()
                 else:
                     print("%s: Not more than one accepted spectrum available. Cannot do averaging" % pos)
