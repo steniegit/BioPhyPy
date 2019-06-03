@@ -21,24 +21,27 @@ import pandas as pd
 import itertools, copy
 
 class DLS_Data():
-
+    
     def __init__(self, folder='', verbose=False):
         self.folder = folder
         # Load data and do outlier rejection
         self.load(verbose=verbose)
         self.reject_incomplete()
         return None
-        
+    
     def load(self, verbose=False):
         # Find files in folder
         fns = glob.glob(self.folder + '/*.dat')
         print("Found %i files in folder %s" % (len(fns), self.folder))
         fns.sort()
         # Create list for dictionary
-        run, acf, acf_x, fit, fit_x, dis, dis_x, pos, row, col = [], [], [], [], [], [], [], [], [], []
+        run, acf, acf_x, fit, fit_x, dis, dis_x, pos, spos, row, col = [], [], [], [], [], [], [], [], [], [], []
         for fn in fns:
             # Extract position
             pos_ = fn.split('.')[0].split('-')[-1]
+            # Create second position with zero filling (easier for sorting later)
+            spos_ = pos_[0] + pos_[1:].zfill(2)
+            # Row, columns and run numbers
             row_ = pos_[0]
             col_ = int(pos_[1:])
             run_ = int(fn.split('.')[1].split('-')[1])
@@ -66,22 +69,29 @@ class DLS_Data():
             pos.append(pos_)
             row.append(row_)
             col.append(col_)
+            spos.append(spos_)
+        # Sort indices based on column, row and runnr
+        inds = np.lexsort((run, spos)) #np.argsort(spos_)
         # Fill class 
-        self.fns = fns
-        self.run = run
-        self.acf = acf
-        self.fit = fit
-        self.dis = dis
-        self.pos = pos
-        self.row = row
-        self.col = col
+        self.fns = [fns[i] for i in inds]
+        self.run = [run[i] for i in inds]
+        self.acf = [acf[i] for i in inds]
+        self.fit = [fit[i] for i in inds]
+        self.dis = [dis[i] for i in inds]
+        self.pos = [pos[i] for i in inds]
+        self.spos = [spos[i] for i in inds]
+        self.row = [row[i] for i in inds]
+        self.col = [col[i] for i in inds]
         self.keep = np.ones(len(self.pos))
         self.out = np.zeros(len(self.pos))
         return None
-
+    
     def reject_incomplete(self, verbose=False):
         '''
-        This is to remove incomplete acf scans
+        This is to remove incomplete acf scans and generates
+        arrays for acfs, fits and diss.
+        The x-values are now stored in acf_x, fit_x and dis_x
+        This makes averaging, plotting etc. easier
         '''
         # Get list with lengths
         acf_size = []
@@ -107,6 +117,7 @@ class DLS_Data():
         self.dis_x = np.array(self.dis[0][:,0])
         self.dis   = [self.dis[index] for index in indices]
         self.pos   = np.array([self.pos[index] for index in indices])
+        self.spos  = np.array([self.spos[index] for index in indices])
         self.row   = np.array([self.row[index] for index in indices])
         self.col   = np.array([self.col[index] for index in indices])
         self.fns   = np.array([self.fns[index] for index in indices])
@@ -129,7 +140,9 @@ class DLS_Data():
             raise Exception('Bad input')
         
         # Loop through positions
-        for pos in np.unique(self.pos):
+        for spos in np.unique(self.spos):
+            # Use pos internally
+            pos = self.pos[self.spos == spos][0]
             # calculate median and tolerances, here we take mean
             mean = np.median(self.acf[:, self.pos==pos], axis=1).reshape((-1,1)) 
             # work out which repeats to keep:
@@ -143,11 +156,24 @@ class DLS_Data():
         self.out = self.out.astype('int')
         return None
 
-    def average_pos(self, plot=False):
+    def average_pos(self, plot=False, plotall=False):
+        '''
+        Averages acf for each position
+        plot: Plot results
+        plotall: Even plot positions averaging cannot be done (e.g. only one spectrum or only outliers)
+        '''
         acf_average, pos_average = [], []
         for pos in np.unique(self.pos):
             if np.sum(self.pos==pos) < 2:
                 print('%s: Less than 2 spectra available (before outlier rejection). Cannot do averaging' % pos)
+                if plotall:
+                    # Plot
+                    fig, ax = plt.subplots(1)
+                    if np.sum(self.keep[self.pos==pos]) > 0:
+                        h1 = ax.semilogx(self.acf_x, sub_in, label='Keep (%i)' % np.sum(self.keep[self.pos==pos]), color='green', lw=.5, alpha=.5)
+                    if np.sum(self.out[self.pos==pos]) > 0:
+                        h3 = ax.semilogx(self.acf_x, sub_out, label='Out (%i)' % np.sum(self.out[self.pos==pos]), color='red', lw=.5, alpha=.5)
+                    ax.legend()
                 continue
             else:
                 if np.sum(self.keep[self.pos==pos])>1:
@@ -176,58 +202,6 @@ class DLS_Data():
                     print("%s: Not more than one accepted spectrum available. Cannot do averaging" % pos)
         self.acf_average = np.array(acf_average)
         self.pos_average = np.array(pos_average)
-                
-    
-def read_dls(folder):
-    '''
-    This function reads DLS spectra acquired with an xtal instrument
-    and returns a pandas DataFrame
-
-    This DataFrame contains the following columns
-    pos: Position on plate (e.g. A1)
-    pos_row: row on plate (e.g. A)
-    pos_col: column on plate (e.g. 1)
-    fn: filename
-    runnr: Number of repeat
-    acf: autocorrelation function
-    fit: fit of autocorrelation function
-    dis: population histogram
-    '''
-    # Find files in folder
-    fns = glob.glob(folder + '/*.dat')
-    print("Found %i files in folder %s" % (len(fns), folder))
-    fns.sort()
-    # Create list for dictionary
-    runs = []
-    for fn in fns:
-        # Extract position
-        pos = fn.split('.')[0].split('-')[-1]
-        row = pos[0]
-        column = int(pos[1:])
-        runnr = int(fn.split('.')[1].split('-')[1])
-        with open(fn, 'r') as f:
-            # Get acf
-            acf = list(itertools.takewhile(lambda x: '&' not in x, 
-                itertools.dropwhile(lambda x: '#acf0' not in x, f)))
-            # Get fit 
-            fit = list(itertools.takewhile(lambda x: '&' not in x, 
-                itertools.dropwhile(lambda x: '#fit0' not in x, f)))
-            # Get dis0 
-            dis = list(itertools.takewhile(lambda x: '&' not in x, 
-                itertools.dropwhile(lambda x: '#dis0' not in x, f)))
-        acf = np.array([list(map(float, b.split())) for b in acf[1:]])       
-        fit = np.array([list(map(float, b.split())) for b in fit[1:]])
-        dis = np.array([list(map(float, b.split())) for b in dis[1:]])
-        # Create dictionary
-        temp_dic = {'pos_row': row, 'pos_col': column, 'acf': acf, 'fit': fit, 'dis': dis, 'fn': fn, 'runnr': runnr, 'pos': pos, 'keep': True}
-        runs.append(copy.deepcopy(temp_dic))
-    # Convert to pandas DataFrame
-    runs = pd.DataFrame(runs)
-    # Rearrange
-    runs = runs[['pos', 'runnr', 'fn', 'pos_row', 'pos_col', 'acf', 'fit', 'dis', 'keep']]
-    # Sort
-    runs = runs.sort_values(['pos_row', 'pos_col', 'runnr']).reset_index(drop=True)
-    return runs
 
 def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True, ptitle='', leg='', save_all=False, loading=np.NaN):
     '''
