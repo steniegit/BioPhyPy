@@ -21,6 +21,68 @@ import pickle
 import pandas as pd
 import itertools, copy
 
+class MS_data():
+    def __init__(self, fn='', path='', mfact=1000):
+        '''
+        Initialize ms data
+        fn: File name
+        '''
+        self.fn = fn
+        self.path = path
+        self.mfact = mfact
+        # Load data and do outlier rejection
+        self.load()
+        return None
+
+    def load(self, verbose=False):
+        spec = np.genfromtxt(self.path + '/' + self.fn)
+        spec[:,0] /= self.mfact
+        # Interpolate for equal spacing
+        step = np.min(np.diff(spec[:,0]))
+        xi = np.arange(np.min(spec[:,0]), np.max(spec[:,0])+step, step) 
+        yi = np.interp(xi, spec[:,0], spec[:,1])
+        self.spec = np.vstack([xi, yi]).T
+        return None
+
+    def smooth(self, sg_window=101, sg_pol=2):
+        self.spec[:,1] = ssi.savgol_filter(self.spec[:,1], sg_window, sg_pol)
+        return None
+
+    def peak_pick(self, prominence=90, distance=1, thresh=1):
+        # Convert distance to points
+        distance = distance // np.min(np.diff(self.spec[:,0]))
+        peaks, info = ssi.find_peaks(self.spec[:,1], prominence=prominence, distance=distance, threshold=thresh)
+        self.peaks = peaks
+        self.peak_info = info
+        print("Found %i peaks" % len(self.peaks))
+        print(self.peaks)
+        return None
+
+    def plot(self, xlim=[]):
+        fig, ax = plt.subplots(1)
+        if len(xlim) == 0:
+            xlim = [np.min(self.spec[:,0]), np.max(self.spec[:,0])]
+        ylim = [np.min(self.spec[:,1]), np.max(self.spec[:,1])]
+        ax.set_title(self.fn)
+        ax.plot(self.spec[:,0], self.spec[:,1])
+        if self.mfact == 1000:
+            acc = "%.2f"
+        else: acc = "%.0f"
+        # Add peak labels
+        for peak in self.peaks:
+            ax.plot([self.spec[peak,0], self.spec[peak,0]], [self.spec[peak,1]+0.01*ylim[1], self.spec[peak,1]+0.05*ylim[1]], color='k')
+            ax.text(self.spec[peak,0], self.spec[peak,1]+0.06*ylim[1], acc % (self.spec[peak,0]), rotation='vertical', ha='center', va='bottom')
+            ax.set_ylim([0, ylim[1]*1.27])
+        # Set xlabel for lowest panel
+        if self.mfact == 1000:
+            ax.set_xlabel('m/z / kDa/e')
+        elif self.mfact == 1:
+            ax.set_xlabel('m/z / Da/e')
+        ax.set_ylabel('Counts')
+        ax.set_xlim(xlim)
+        fig.tight_layout()
+        return fig, ax
+
 class DLS_Data():
     
     def __init__(self, folder='', verbose=False, labels={}, pfolder=''):
