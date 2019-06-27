@@ -22,20 +22,27 @@ import pandas as pd
 import itertools, copy
 
 class MS_data():
-    def __init__(self, fn='', path='', mfact=1000):
+    def __init__(self, fn='', mfact=1000):
         '''
         Initialize ms data
         fn: File name
+        mfact: 1000 for kDa, 1 for Da
         '''
         self.fn = fn
-        self.path = path
+        #self.path = path
         self.mfact = mfact
+        self.peaks = []
         # Load data and do outlier rejection
         self.load()
         return None
 
     def load(self, verbose=False):
-        spec = np.genfromtxt(self.path + '/' + self.fn)
+        '''
+        This function loads the file and
+        interpolates the points (for later smoothing)
+        So far there is no error check done
+        '''
+        spec = np.genfromtxt(self.fn)
         spec[:,0] /= self.mfact
         # Interpolate for equal spacing
         step = np.min(np.diff(spec[:,0]))
@@ -45,13 +52,25 @@ class MS_data():
         return None
 
     def smooth(self, sg_window=101, sg_pol=2):
+        '''
+        This function uses a Savitzky-Golay filter for smoothening the data
+        '''
         self.spec[:,1] = ssi.savgol_filter(self.spec[:,1], sg_window, sg_pol)
         return None
 
-    def peak_pick(self, prominence=90, distance=1, thresh=1):
+    def peak_pick(self, params={}):
+        '''
+        This function picks peaks with scipy.signal.find_peaks
+        params: dictionary with optional parameters
+          distance: distance threshold
+          height: Required height of peaks. Either a number, None, an array matching x or a 2-element sequence of the former. The first element is always interpreted as the minimal and the second, if supplied, as the maximal required height.
+          threshold : Required threshold of peaks, the vertical distance to its neighbouring samples
+          distance: Required minimal horizontal distance (>= 1) in samples between neighbouring peaks. Smaller peaks are removed first until the condition is fulfilled for all remaining peaks.
+          prominence: Required prominence of peaks. Either a number, None, an array matching x or a 2-element sequence of the former. The first element is always interpreted as the minimal and the second, if supplied, as the maximal required prominence. The prominence of a peak measures how much a peak stands out from the surrounding baseline of the signal and is defined as the vertical distance between the peak and its lowest contour line.
+        '''
         # Convert distance to points
-        distance = distance // np.min(np.diff(self.spec[:,0]))
-        peaks, info = ssi.find_peaks(self.spec[:,1], prominence=prominence, distance=distance, threshold=thresh)
+        #distance = distance // np.min(np.diff(self.spec[:,0]))
+        peaks, info = ssi.find_peaks(self.spec[:,1], **params)
         self.peaks = peaks
         self.peak_info = info
         print("Found %i peaks" % len(self.peaks))
@@ -69,9 +88,10 @@ class MS_data():
             acc = "%.2f"
         else: acc = "%.0f"
         # Add peak labels
-        for peak in self.peaks:
-            ax.plot([self.spec[peak,0], self.spec[peak,0]], [self.spec[peak,1]+0.01*ylim[1], self.spec[peak,1]+0.05*ylim[1]], color='k')
-            ax.text(self.spec[peak,0], self.spec[peak,1]+0.06*ylim[1], acc % (self.spec[peak,0]), rotation='vertical', ha='center', va='bottom')
+        if len(self.peaks) > 0:
+            for peak in self.peaks:
+                ax.plot([self.spec[peak,0], self.spec[peak,0]], [self.spec[peak,1]+0.01*ylim[1], self.spec[peak,1]+0.05*ylim[1]], color='k')
+                ax.text(self.spec[peak,0], self.spec[peak,1]+0.06*ylim[1], acc % (self.spec[peak,0]), rotation='vertical', ha='center', va='bottom')
             ax.set_ylim([0, ylim[1]*1.27])
         # Set xlabel for lowest panel
         if self.mfact == 1000:
