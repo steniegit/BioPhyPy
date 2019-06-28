@@ -22,6 +22,10 @@ import pandas as pd
 import itertools, copy
 
 class MS_data():
+    ''' 
+    To do
+    Write function to export table
+    '''
     def __init__(self, fn='', mfact=1000):
         '''
         Initialize ms data
@@ -60,13 +64,29 @@ class MS_data():
 
     def peak_pick(self, params={}):
         '''
+        To do: convert distance threshold in points to Da
+
         This function picks peaks with scipy.signal.find_peaks
         params: dictionary with optional parameters
           distance: distance threshold
-          height: Required height of peaks. Either a number, None, an array matching x or a 2-element sequence of the former. The first element is always interpreted as the minimal and the second, if supplied, as the maximal required height.
-          threshold : Required threshold of peaks, the vertical distance to its neighbouring samples
-          distance: Required minimal horizontal distance (>= 1) in samples between neighbouring peaks. Smaller peaks are removed first until the condition is fulfilled for all remaining peaks.
-          prominence: Required prominence of peaks. Either a number, None, an array matching x or a 2-element sequence of the former. The first element is always interpreted as the minimal and the second, if supplied, as the maximal required prominence. The prominence of a peak measures how much a peak stands out from the surrounding baseline of the signal and is defined as the vertical distance between the peak and its lowest contour line.
+          height: Required height of peaks. Either a number, None, 
+                  an array matching x or a 2-element sequence of the former. 
+                  The first element is always interpreted as the minimal and 
+                  the second, if supplied, as the maximal required height.
+          threshold : Required threshold of peaks, the vertical distance 
+                      to its neighbouring samples
+          distance: Required minimal horizontal distance (>= 1) in samples 
+                    between neighbouring peaks. Smaller peaks are removed 
+                    first until the condition is fulfilled for all remaining 
+                    peaks.
+          prominence: Required prominence of peaks. Either a number, None, 
+                      an array matching x or a 2-element sequence of the 
+                      former. The first element is always interpreted as the 
+                      minimal and the second, if supplied, as the maximal 
+                      required prominence. The prominence of a peak measures 
+                      how much a peak stands out from the surrounding baseline 
+                      of the signal and is defined as the vertical distance 
+                      between the peak and its lowest contour line.
         '''
         # Convert distance to points
         #distance = distance // np.min(np.diff(self.spec[:,0]))
@@ -77,7 +97,7 @@ class MS_data():
         print(self.peaks)
         return None
 
-    def plot(self, xlim=[]):
+    def plot(self, fn='', xlim=[]):
         fig, ax = plt.subplots(1)
         if len(xlim) == 0:
             xlim = [np.min(self.spec[:,0]), np.max(self.spec[:,0])]
@@ -101,6 +121,8 @@ class MS_data():
         ax.set_ylabel('Counts')
         ax.set_xlim(xlim)
         fig.tight_layout()
+        if len(fn) < 0:
+            fig.savefig(fn)
         return fig, ax
 
 class DLS_Data():
