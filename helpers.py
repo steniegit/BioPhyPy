@@ -25,6 +25,9 @@ class MS_data():
     ''' 
     To do
     Write function to export table
+    When plotting, adjust ylim to spectrum in xlim
+    Convert distance in kDa when mfact=1000
+    bl correction, based on peak_find with inverted data and spline interpolation
     '''
     def __init__(self, fn='', mfact=1000):
         '''
@@ -38,6 +41,8 @@ class MS_data():
         self.peaks = []
         # Load data and do outlier rejection
         self.load()
+        # Safety copy of raw data (not affected by data processing)
+        self.raw = copy.deepcopy(self.spec)
         return None
 
     def load(self, verbose=False):
@@ -58,6 +63,8 @@ class MS_data():
     def smooth(self, sg_window=101, sg_pol=2):
         '''
         This function uses a Savitzky-Golay filter for smoothening the data
+        sg_window: Window size for smoothing
+        sg_pol:    Polynomial order for smoothing
         '''
         self.spec[:,1] = ssi.savgol_filter(self.spec[:,1], sg_window, sg_pol)
         return None
@@ -97,6 +104,19 @@ class MS_data():
         print(self.peaks)
         return None
 
+    def bl_correction(self, params={}):
+        '''
+        Do baseline correction based on peak_finding with inverted data
+        The same parameters as for peak_pick are used
+        A spline curve will be calculated based on the minima and subtracted
+        The baseline will be saved as self.bl
+        '''
+        peaks, info = ssi.find_peaks(self.spec[:,1]*(-1), **params)
+        print("Found %i peaks for baseline" % len(peaks))
+        print(peaks)
+        return None
+
+        
     def plot(self, fn='', xlim=[]):
         fig, ax = plt.subplots(1)
         if len(xlim) == 0:
@@ -338,7 +358,7 @@ class DLS_Data():
         self.acf_average = np.array(acf_average)
         self.pos_average = np.array(pos_average)
 
-def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True, ptitle='', leg='', save_all=False, loading=np.NaN):
+def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True, ptitle='', leg='', save_all=False, loading=np.NaN, ref_fn=''):
     '''
     Wrapper script to determine KD from 
     Octet data
@@ -356,6 +376,12 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     try:
         rise, rise_time = extract_octetSeg(folder, seg=seg_rise, sensor=sensor, norm=norm)
         decay, decay_time = extract_octetSeg(folder, seg=seg_decay, sensor=sensor, norm=norm)
+        if len(ref_fn) > 0:
+            # Load reference
+            ref_rise, ref_rise_time = extract_octetSeg(folder, seg=seg_rise, sensor=sensor, norm=norm)
+            ref_rise, ref_rise_time = extract_octetSeg(folder, seg=seg_rise, sensor=sensor, norm=norm)
+            rise = rise - ref_rise
+            decay = decay - ref_decay
     except:
         print("Could not load data! Exiting")
         return None, None
