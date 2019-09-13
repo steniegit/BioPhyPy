@@ -358,7 +358,7 @@ class DLS_Data():
         self.acf_average = np.array(acf_average)
         self.pos_average = np.array(pos_average)
 
-def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True, ptitle='', leg='', save_all=False, loading=np.NaN, ref_fn=''):
+def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True, ptitle='', leg='', save_all=False, loading=np.NaN, ref_fn='', flip=False):
     '''
     Wrapper script to determine KD from 
     Octet data
@@ -371,6 +371,7 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     order: 'a' based on fit factor, or 'sort' based on value
     norm: Normalize values (0-1)
     save_all: if this is True, then also the rise/decay and the fitted rise/decay are saved ! This takes space!!!
+    flip: Flip data, i.e. decaying signal when binding; happens for instance for lipid vesicle binding
     '''
     # Load data
     try:
@@ -382,6 +383,10 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
             ref_rise, ref_rise_time = extract_octetSeg(folder, seg=seg_rise, sensor=sensor, norm=norm)
             rise = rise - ref_rise
             decay = decay - ref_decay
+        if flip:
+            rise = - rise +1
+            decay = - decay +1
+            print("Flipped data!")
     except:
         print("Could not load data! Exiting")
         return None, None
@@ -455,7 +460,7 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     fit['leg']          = leg
     fit['loading']      = loading
     # Save dictionary in fits
-    fn_pickle = "fits/" + folder.replace('./','').replace('/', '_') + "sensor%i_riseseg%i_decayseg%i_func%s.p" % (sensor, seg_rise, seg_decay, func)
+    fn_pickle = "" + folder.replace('./','').replace('/', '_') + "sensor%i_riseseg%i_decayseg%i_func%s.p" % (sensor, seg_rise, seg_decay, func)
     pickle.dump(fit, open(fn_pickle, 'wb'))
     print("Fit results saved in %s" % fn_pickle)
     return fitvalues_rise, fitvalues_decay, fit
