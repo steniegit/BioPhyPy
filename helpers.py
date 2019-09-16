@@ -463,7 +463,7 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     fn_pickle = "" + folder.replace('./','').replace('/', '_') + "sensor%i_riseseg%i_decayseg%i_func%s.p" % (sensor, seg_rise, seg_decay, func)
     pickle.dump(fit, open(fn_pickle, 'wb'))
     print("Fit results saved in %s" % fn_pickle)
-    return fitvalues_rise, fitvalues_decay, fit
+    return fig, axs, fitvalues_rise, fitvalues_decay, fit
     
 def extract_octetSeg(folder, seg=3, sensor=1, norm=True):
     '''
