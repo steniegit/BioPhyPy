@@ -439,6 +439,7 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
                 ax.set_ylabel('Binding / nm')
     else:
         fig = None
+        axs = None
 
     # Determine KD
     fit = output_fit(fitvalues_rise, fitvalues_decay, r2_rise=r2_rise, r2_decay=r2_decay, conc=conc, order=order)
@@ -464,6 +465,8 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     pickle.dump(fit, open(fn_pickle, 'wb'))
     print("Fit results saved in %s" % fn_pickle)
     return fig, axs, fitvalues_rise, fitvalues_decay, fit
+
+
     
 def extract_octetSeg(folder, seg=3, sensor=1, norm=True):
     '''
