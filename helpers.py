@@ -372,6 +372,8 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     norm: Normalize values (0-1)
     save_all: if this is True, then also the rise/decay and the fitted rise/decay are saved ! This takes space!!!
     flip: Flip data, i.e. decaying signal when binding; happens for instance for lipid vesicle binding
+    Returns fitvalues_rise, fitvalues_decay and fit
+    If plot=True it returns fig, axs, fitvalues_rise, fitvalues_decay and fit
     '''
     # Load data
     try:
@@ -464,7 +466,10 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     fn_pickle = "" + folder.replace('./','').replace('/', '_') + "sensor%i_riseseg%i_decayseg%i_func%s.p" % (sensor, seg_rise, seg_decay, func)
     pickle.dump(fit, open(fn_pickle, 'wb'))
     print("Fit results saved in %s" % fn_pickle)
-    return fig, axs, fitvalues_rise, fitvalues_decay, fit
+    if plot:
+        return fig, axs, fitvalues_rise, fitvalues_decay, fit
+    else:
+        return fitvalues_rise, fitvalues_decay, fit
 
 
     
