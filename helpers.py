@@ -20,6 +20,33 @@ from IPython.core.debugger import set_trace
 import pickle
 import pandas as pd
 import itertools, copy
+from scipy import sparse
+from scipy.sparse.linalg import spsolve
+
+def baseline_als(y, lam=1E15, p=0.001, niter=10):
+    '''
+    Baseline Correction with
+    Asymmetric Least Squares Smoothing
+    Developed by Eilers and Boelens
+    https://zanran_storage.s3.amazonaws.com/www.science.uva.nl/ContentPages/443199618.pdf
+    Adjusted for python 3.6 according to 
+    https://stackoverflow.com/questions/29156532/python-baseline-correction-library
+    Input
+    y: spectrum
+    lam: lambda value for smoothness (general recommendation 1E2 < lam < 1E9)
+    p: parameter for asymmetry (general recommendation: 0.001 < p < 0.1)
+    niter: number of iterations
+    Outputs baseline
+    '''
+    L = len(y)
+    D = sparse.diags([1,-2,1],[0,-1,-2], shape=(L,L-2))
+    w = np.ones(L)
+    for i in range(niter):
+        W = sparse.spdiags(w, 0, L, L)
+        Z = W + lam * D.dot(D.transpose())
+        z = spsolve(Z, w*y)
+        w = p * (y > z) + (1-p) * (y < z)
+    return z
 
 class MS_data():
     ''' 
@@ -43,6 +70,8 @@ class MS_data():
         self.load()
         # Safety copy of raw data (not affected by data processing)
         self.raw = copy.deepcopy(self.spec)
+        # Normalization flag
+        self.norm = False
         return None
 
     def load(self, verbose=False):
@@ -68,6 +97,45 @@ class MS_data():
         '''
         self.spec[:,1] = ssi.savgol_filter(self.spec[:,1], sg_window, sg_pol)
         return None
+
+    def bl_correct(self, lam=1E15, p=0.0001, niter=10):
+        '''
+        Baseline Correction with
+        Asymmetric Least Squares Smoothing
+        Developed by Eilers and Boelens
+        https://zanran_storage.s3.amazonaws.com/www.science.uva.nl/ContentPages/443199618.pdf
+        Adjusted for python 3.6 according to 
+        https://stackoverflow.com/questions/29156532/python-baseline-correction-library
+        Input
+        y: spectrum
+        lam: lambda value for smoothness (general recommendation 1E2 < lam < 1E9)
+        p: parameter for asymmetry (general recommendation: 0.001 < p < 0.1
+        niter: number of iterations
+        Outputs baseline
+        For MS data higher values for lambda and lower for p might be necessary
+        '''
+        # Backup spectrum
+        self.spec_before_bl = copy.deepcopy(self.spec)
+        # Subtract baseline
+        self.bl = baseline_als(self.spec[:,1], lam, p, niter)
+        self.spec[:,1] -= self.bl
+        return None
+    
+
+    def normalize(self, region=[]):
+        '''
+        This option normalizes the spectra
+        '''
+        if len(region)==2:
+            x1 = np.argmin(np.abs(self.spec[:,0] - region[0]))
+            x2 = np.argmin(np.abs(self.spec[:,0] - region[1]))
+            maxval = np.max(self.spec[x1:x2,1])
+            self.spec[:,1] /= maxval
+        else:
+            self.spec[:,1] /= np.max(self.spec[:,1])
+        self.norm = True
+        return None
+            
 
     def peak_pick(self, params={}):
         '''
@@ -104,26 +172,29 @@ class MS_data():
         print(self.peaks)
         return None
 
-    def bl_correction(self, params={}):
-        '''
-        Do baseline correction based on peak_finding with inverted data
-        The same parameters as for peak_pick are used
-        A spline curve will be calculated based on the minima and subtracted
-        The baseline will be saved as self.bl
-        '''
-        peaks, info = ssi.find_peaks(self.spec[:,1]*(-1), **params)
-        print("Found %i peaks for baseline" % len(peaks))
-        print(peaks)
-        return None
+    # def bl_correction(self, params={}):
+    #     '''
+    #     Do baseline correction based on peak_finding with inverted data
+    #     The same parameters as for peak_pick are used
+    #     A spline curve will be calculated based on the minima and subtracted
+    #     The baseline will be saved as self.bl
+    #     '''
+    #     peaks, info = ssi.find_peaks(self.spec[:,1]*(-1), **params)
+    #     print("Found %i peaks for baseline" % len(peaks))
+    #     print(peaks)
+    #     return None
 
         
-    def plot(self, fn='', xlim=[]):
-        fig, ax = plt.subplots(1)
+    def plot(self, fn='', xlim=[], ax=None):
+        if ax==None:
+            fig, ax = plt.subplots(1)
+        else:
+            fig = ax.figure
         if len(xlim) == 0:
             xlim = [np.min(self.spec[:,0]), np.max(self.spec[:,0])]
         ylim = [np.min(self.spec[:,1]), np.max(self.spec[:,1])]
-        ax.set_title(self.fn)
-        ax.plot(self.spec[:,0], self.spec[:,1])
+        ax.set_title(ax.get_title() + '\n' + self.fn)
+        ax.plot(self.spec[:,0], self.spec[:,1], label=self.fn.split('/')[-1].replace('.txt',''))
         if self.mfact == 1000:
             acc = "%.2f"
         else: acc = "%.0f"
@@ -138,11 +209,17 @@ class MS_data():
             ax.set_xlabel('m/z / kDa/e')
         elif self.mfact == 1:
             ax.set_xlabel('m/z / Da/e')
-        ax.set_ylabel('Counts')
+        if self.norm:
+            ax.set_ylabel('Norm. counts')
+            ax.set_yticks([])
+            ax.set_yticklabels([])
+        else:
+            ax.set_ylabel('Counts')
         ax.set_xlim(xlim)
         fig.tight_layout()
         if len(fn) < 0:
             fig.savefig(fn)
+        ax.legend()
         return fig, ax
 
 class DLS_Data():
