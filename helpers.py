@@ -869,7 +869,8 @@ def plot_octet(data_folder='', seg_labels=['BL1', 'Load', 'BL2', 'Assoc.', 'Diss
     # Add labels
     for i in range(len(act_times)):
         pos = (act_times[i] - np.min(act_times))
-        ax.text(middles[i], np.max(data[:,sensors*2+1])*1.07, seg_labels[i], ha='center')
+        if i < len(seg_labels):
+            ax.text(middles[i], np.max(data[:,sensors*2+1])*1.07, seg_labels[i], ha='center')
     # Labels in loading
     for i in range(len(l_labels)): 
         ax.text(middles[1]*1.1, l_posis[i], l_labels[i], ha='center', color=hps[i].get_color()) # ,bbox=dict(facecolor='white', alpha=.5) $\,\mu$g/ml #bbox=dict(facecolor='white', alpha=.5)
