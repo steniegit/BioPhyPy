@@ -1205,7 +1205,7 @@ def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, 
     
     return output, popt, deriv_0
 
-def quick_test(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_window=13, sg_poly=2, guess=[2155, 0.2, 5, 2165, 1, 5], func_type='gauss', gauss_pos = 'deriv', fit_tol=10, norm=True, gauss_lim = [2155, 2172], plot=True, title='', plot_fits=True):
+def quick_test(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_window=13, sg_poly=2, guess=[2155, 0.2, 5, 2165, 1, 5], func_type='gauss', gauss_pos = 'deriv', fit_tol=10, norm=False, gauss_lim = [2155, 2172], plot=True, title='', plot_fits=True):
     '''
     Just a quick way to plot data and fits
     directly from the 
@@ -1271,13 +1271,20 @@ def quick_test(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_w
     ax.legend()
     # Label axes
     ax.set_xlabel('Wavenumber / cm$^{-1}$')
-    ax.set_ylabel('Norm. abs.')
+    if norm:
+        ax.set_ylabel('Norm. abs.')
+    else:
+        ax.set_ylabel('Absorb. / mOD')
     # Put filename in figure and windows title
     if len(title) ==0:
         fig.suptitle(fn)
     else:
         fig.suptitle(title)
     fig.canvas.set_window_title(fn)
+    if norm:
+        fig.savefig(fn.replace(".","_") + "_norm.pdf")
+    else:
+        fig.savefig(fn.replace(".","_") + "_nonorm.pdf")
     return fig, axs, spec_opt, spec
 
 def time_plot(specs, times, pos, plot=True):
