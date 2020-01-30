@@ -1565,3 +1565,84 @@ def plot_aoforce(freq, intensities,ax=None, fwhm=20, xlim=(0,4000), scalf=0.9711
     ax.set_xlabel('Wavenumber / cm$^\mathregular{-1}$')
 
     return (x, specsum,)
+
+class MST_data():
+    '''
+    This is a class to read in MST data that 
+    has been exported as xlsx
+    '''
+    def __init__(self, fn=''):
+        '''
+        Initialize ms data
+        fn: File name
+        '''
+        self.fn = fn
+        #self.path = path
+        # Load data
+        xls = pd.ExcelFile(fn)
+        #print(xls.sheet_names)
+        dat = pd.read_excel(xls, 'RawData', index_col=None, header=None)
+        
+        # Find out where data starts
+        dat_pos = np.argwhere(dat.iloc[:,0] == 'Time [s]')[0,0] +1
+        # Get concentrations and locations
+        lig_pos_ver = np.argwhere(dat.iloc[:,0] == 'Ligand Concentration:')[0,0] 
+        lig_pos_hor = np.argwhere(dat.iloc[lig_pos_ver,:] == 'Ligand Concentration:').squeeze() +1
+        self.concs = np.array(dat.iloc[lig_pos_ver, lig_pos_hor])
+        # Get times
+        self.times = np.array(dat.iloc[dat_pos:,0])
+        # Get decays
+        self.decays = np.array(dat.iloc[dat_pos:,lig_pos_hor])
+        return None
+
+    def normalize(self):
+        '''
+        Normalize with values at t <= 0
+        '''
+        ind_neg = self.times <=0
+        self.decays /= np.mean(self.decays[ind_neg,:], axis=0)
+        return None
+
+    def calc_fnorm(self, hot=5, cold=0):
+        '''
+        This calculates fnorm
+        '''
+        ind_hot = (self.times >= hot-1) * (self.times <= hot)
+        ind_cold = (self.times >= cold-1) * (self.times <= cold)
+        F_cold = np.mean(self.decays[ind_cold,:], axis=0)
+        F_hot = np.mean(self.decays[ind_hot,:], axis=0)
+        self.fnorm = F_hot/F_cold
+        return None
+
+    def plot(self):
+        if hasattr(self, 'fnorm'):
+            fig, axs = plt.subplots(2)
+            # Plot fnorm
+            ax = axs[1]
+            ax.semilogx(self.concs, self.fnorm, 'o')
+            ax = axs[0]
+        else:
+            fig, axs = plt.subplots(1)
+            ax = axs
+        plt.set_cmap(plt.jet())
+        # Define color map
+        cmap = iter(plt.cm.jet(np.linspace(0,1, len(np.unique(self.concs)))))
+        # Plot
+        # Make sure that each conc. only has one color
+        prev_conc = -1 
+        lh = []   # Line handles
+        alpha=1
+        lw =1
+
+        # Full plot
+        for i in range(len(self.concs)):
+            temp, = ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]), alpha=alpha, lw=lw, color=cmap.__next__())
+            lh.append(temp)
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), handles=lh, title="Ligand conc.")
+        # ax.set_xlim([dat.iloc[4,1], dat.iloc[-1,1]])
+        ax.set_xlabel('Time / s')
+        ax.set_ylabel('Norm. fluorescence')
+
+        fig.show()
+
+        return None
