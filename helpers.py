@@ -48,6 +48,44 @@ def baseline_als(y, lam=1E15, p=0.001, niter=10):
         w = p * (y > z) + (1-p) * (y < z)
     return z
 
+def single_site(conc_lig, kd, conc_prot, t_bottom, t_top):
+    '''
+    Single-site model to fit apparent Kd from melting temperatures
+    Formula from: 
+    Vivoli, M., Novak, H.R., Littlechild, J.A., Harmer, N.J. 
+    Determination of Protein-ligand Interactions Using Differential Scanning Fluorimetry.
+    J. Vis. Exp. (91), e51809, doi:10.3791/51809 (2014).
+    '''
+    expr_sqrt = (conc_prot-kd-conc_lig+np.sqrt(((conc_prot+conc_lig+kd)**2)-(4*conc_prot*conc_lig))) / (2*conc_prot)
+    return t_bottom + ((t_top - t_bottom)*(1-expr_sqrt))
+
+def single_site_kd(conc_prot):
+    '''
+    This is an auxiliary function used for fitting
+    It returns a function for the single site model
+    for a fixed protein concentration
+    '''
+    def return_func(conc_lig, kd, t_bottom, t_top):
+        return single_site(conc_lig, kd, conc_prot, t_bottom, t_top)
+    return return_func
+
+def coop_model_jove(conc_lig, kd, n, t_bottom, t_top):
+    '''
+    Cooperative model to fit apparent Kd from melting temperatures
+    Formula from: 
+    Vivoli, M., Novak, H.R., Littlechild, J.A., Harmer, N.J. 
+    Determination of Protein-ligand Interactions Using Differential Scanning Fluorimetry.
+    J. Vis. Exp. (91), e51809, doi:10.3791/51809 (2014).
+    '''
+    return t_bottom + (t_top-t_bottom)* ((conc_lig/kd)**n)/ (1+((conc_lig/kd)**n)) 
+
+def hill_model(conc_lig, kd, n, t_bottom, t_top):
+    '''
+    Cooperative model to fit apparent Kd from melting temperatures
+    Gives the same results as coop_model_jove
+    '''
+    return t_bottom + (t_top-t_bottom)* ((conc_lig)**n)/ (kd+conc_lig**n)
+
 class MS_data():
     ''' 
     To do
