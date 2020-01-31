@@ -1595,7 +1595,7 @@ class MST_data():
         # Get concentrations and locations
         lig_pos_ver = np.argwhere(dat.iloc[:,0] == 'Ligand Concentration:')[0,0] 
         lig_pos_hor = np.argwhere(dat.iloc[lig_pos_ver,:] == 'Ligand Concentration:').squeeze() +1
-        self.concs = np.array(dat.iloc[lig_pos_ver, lig_pos_hor])
+        self.concs = np.array(dat.iloc[lig_pos_ver, lig_pos_hor]).astype(np.float32) * 1E-6
         # Get times
         self.times = np.array(dat.iloc[dat_pos:,0])
         # Get decays
@@ -1619,14 +1619,40 @@ class MST_data():
         F_cold = np.mean(self.decays[ind_cold,:], axis=0)
         F_hot = np.mean(self.decays[ind_hot,:], axis=0)
         self.fnorm = F_hot/F_cold
+        self.hot = hot
+        self.cold = cold
         return None
 
+    def get_kd(self):
+        '''
+        Get Kd from fnorm
+        '''
+        if not hasattr(self, 'fnorm'):
+            print("Fnorm has not been calculated yet!\n Will do that now")
+            self.calc_fnorm()
+        if not hasattr(self, 'prot_conc'):
+            print("Protein concentration not specified yet!")
+            print("This needs to be done before by setting conc_prot!")
+            print("Exiting function")
+            return None
+        func = single_site_kd(self.prot_conc)
+        opt, cov = curve_fit(func, self.concs, self.fnorm) #, p0=(1E-6, np.min(self.fnorm), np.max(self.fnorm)))
+        print("Kd")
+        self.fit_opt = opt
+        self.fit_cov = cov
+        #self.plot()
+        return opt, cov
+    
     def plot(self):
         if hasattr(self, 'fnorm'):
             fig, axs = plt.subplots(2)
             # Plot fnorm
             ax = axs[1]
             ax.semilogx(self.concs, self.fnorm, 'o')
+            if hasattr(self, 'fit_opt'):
+                ax.semilogx(self.concs, single_site_kd(self.prot_conc)(self.concs, *self.fit_opt), label='Fit')
+                #print(single_site_kd(self.prot_conc)(self.concs, *self.fit_opt))
+                test = 0
             ax = axs[0]
         else:
             fig, axs = plt.subplots(1)
@@ -1643,13 +1669,18 @@ class MST_data():
 
         # Full plot
         for i in range(len(self.concs)):
-            temp, = ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]), alpha=alpha, lw=lw, color=cmap.__next__())
+            temp, = ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color=cmap.__next__())
             lh.append(temp)
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), handles=lh, title="Ligand conc.")
         # ax.set_xlim([dat.iloc[4,1], dat.iloc[-1,1]])
         ax.set_xlabel('Time / s')
         ax.set_ylabel('Norm. fluorescence')
 
+        # Add hot/cold areas
+        if hasattr(self, 'fnorm'):
+            ax.axvspan(self.cold-1, self.cold, facecolor='blue', alpha=.5) #, zorder=-20)
+            ax.axvspan(self.hot-1, self.hot, facecolor='red', alpha=.5) #, zorder=-20)
+        
         fig.show()
 
         return None
