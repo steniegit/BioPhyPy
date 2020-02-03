@@ -1602,6 +1602,15 @@ class MST_data():
         self.decays = np.array(dat.iloc[dat_pos:,lig_pos_hor])
         return None
 
+    def sort(self):
+        '''
+        Sort ligand concentrations and fluorescence
+        with ascending ligand concentration
+        '''
+        sort_ind = np.argsort(self.concs)
+        self.concs = self.concs[sort_ind]
+        self.decays = self.decays[:, sort_ind]
+
     def normalize(self):
         '''
         Normalize with values at t <= 0
@@ -1635,9 +1644,14 @@ class MST_data():
             print("This needs to be done before by setting conc_prot!")
             print("Exiting function")
             return None
+        # Chose fitting function
         func = single_site_kd(self.prot_conc)
-        opt, cov = curve_fit(func, self.concs, self.fnorm) #, p0=(1E-6, np.min(self.fnorm), np.max(self.fnorm)))
-        print("Kd")
+        # Get starting values
+        nonbound0 = np.max(self.fnorm)
+        bound0 = np.min(self.fnorm)
+        half_bound = np.mean((nonbound0, bound0))
+        kd0 = self.concs[np.argmin(np.abs(self.fnorm - half_bound))]
+        opt, cov = curve_fit(func, self.concs, self.fnorm, p0=(kd0, nonbound0, bound0)) #, p0=(1E-6, np.min(self.fnorm), np.max(self.fnorm)))
         self.fit_opt = opt
         self.fit_cov = cov
         #self.plot()
@@ -1645,14 +1659,16 @@ class MST_data():
     
     def plot(self):
         if hasattr(self, 'fnorm'):
-            fig, axs = plt.subplots(2)
+            fig, axs = plt.subplots(2, figsize=(5,10))
             # Plot fnorm
             ax = axs[1]
-            ax.semilogx(self.concs, self.fnorm, 'o')
+            ax.semilogx(self.concs, self.fnorm, 'o') #, label='Exp')
             if hasattr(self, 'fit_opt'):
-                ax.semilogx(self.concs, single_site_kd(self.prot_conc)(self.concs, *self.fit_opt), label='Fit')
-                #print(single_site_kd(self.prot_conc)(self.concs, *self.fit_opt))
-                test = 0
+                concs_dense = np.exp(np.linspace(np.log(self.concs[0]), np.log(self.concs[-1]), 100))
+                ax.semilogx(concs_dense, single_site_kd(self.prot_conc)(concs_dense, *self.fit_opt), label='K$_d=$%.1E$\,$M' % self.fit_opt[0])
+                ax.legend()
+            ax.set_xlabel('Ligand concentration / M')
+            ax.set_ylabel('Fnorm')
             ax = axs[0]
         else:
             fig, axs = plt.subplots(1)
@@ -1671,7 +1687,7 @@ class MST_data():
         for i in range(len(self.concs)):
             temp, = ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color=cmap.__next__())
             lh.append(temp)
-        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), handles=lh, title="Ligand conc.")
+        ax.legend(loc='center left', bbox_to_anchor=(.5, 0.5), handles=lh, title="Ligand conc.")
         # ax.set_xlim([dat.iloc[4,1], dat.iloc[-1,1]])
         ax.set_xlabel('Time / s')
         ax.set_ylabel('Norm. fluorescence')
