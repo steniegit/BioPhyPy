@@ -1597,9 +1597,9 @@ class MST_data():
         lig_pos_hor = np.argwhere(dat.iloc[lig_pos_ver,:] == 'Ligand Concentration:').squeeze() +1
         self.concs = np.array(dat.iloc[lig_pos_ver, lig_pos_hor]).astype(np.float32) * 1E-6
         # Get times
-        self.times = np.array(dat.iloc[dat_pos:,0])
+        self.times = np.array(dat.iloc[dat_pos:,0]).astype('float32')
         # Get decays
-        self.decays = np.array(dat.iloc[dat_pos:,lig_pos_hor])
+        self.decays = np.array(dat.iloc[dat_pos:,lig_pos_hor]).astype('float32')
         return None
 
     def sort(self):
@@ -1610,7 +1610,8 @@ class MST_data():
         sort_ind = np.argsort(self.concs)
         self.concs = self.concs[sort_ind]
         self.decays = self.decays[:, sort_ind]
-
+        return None
+        
     def normalize(self):
         '''
         Normalize with values at t <= 0
