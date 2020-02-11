@@ -512,7 +512,7 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     if func=='biexp':
         func_rise = biexp_rise
         func_decay = biexp_decay
-        guess = (0.5, 0.5, 10, 10, 1)
+        guess = (0.5, 0.5, .1, .1, np.max(rise))
     elif func=='exp':
         func_rise = exp_rise
         func_decay = exp_decay
@@ -1266,6 +1266,14 @@ def quick_test(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_w
                     ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='left', va='center')
                 else:
                     ax.text(spec_opt[i*3], ax.get_ylim()[1]*1.05, '%.0f(%.0f)' % (spec_opt[i*3], spec_opt[i*3+2]), ha='right', va='center')
+            # Add ratio
+            if spec_opt[0] < spec_opt[3]:
+                ratio = spec_opt[1] / spec_opt[4]
+            else:
+                ratio = spec_opt[4] / spec_opt[1]
+            posx = 2200 #ax.get_xlim()[1] #np.mean([spec_opt[0], spec_opt[3]])
+            posy = 0.5*np.mean([spec_opt[1], spec_opt[4]])
+            ax.text(posx, posy, "Amp. ratio: %.1f " % ratio, ha='right')
             ax.axvline(spec_opt[i*3], color='grey', linestyle='--', lw=1, zorder=-20)
     ax.set_xlim([np.min(spec.x), np.max(spec.x)])
     ax.legend()
