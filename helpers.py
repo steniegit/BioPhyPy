@@ -1726,4 +1726,7 @@ class MST_data():
         fig.tight_layout()
         fig.show()
 
+        # Save figure
+        fig.savefig(self.fn.replace('.xlsx', '.pdf'))
+
         return None
