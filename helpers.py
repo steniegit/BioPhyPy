@@ -22,6 +22,9 @@ import pandas as pd
 import itertools, copy
 from scipy import sparse
 from scipy.sparse.linalg import spsolve
+# For color bars
+import matplotlib.colors as mcolors
+from matplotlib import cm
 
 def baseline_als(y, lam=1E15, p=0.001, niter=10):
     '''
@@ -1656,8 +1659,8 @@ class MST_data():
         # Chose fitting function
         func = single_site_kd(self.prot_conc)
         # Get starting values
-        nonbound0 = np.max(self.fnorm)
-        bound0 = np.min(self.fnorm)
+        nonbound0 = self.fnorm[0]
+        bound0 = self.fnorm[-1]
         half_bound = np.mean((nonbound0, bound0))
         kd0 = self.concs[np.argmin(np.abs(self.fnorm - half_bound))]
         opt, cov = curve_fit(func, self.concs, self.fnorm, p0=(kd0, nonbound0, bound0)) #, p0=(1E-6, np.min(self.fnorm), np.max(self.fnorm)))
@@ -1668,7 +1671,7 @@ class MST_data():
     
     def plot(self):
         if hasattr(self, 'fnorm'):
-            fig, axs = plt.subplots(2, figsize=(5,10))
+            fig, axs = plt.subplots(1,2, figsize=(10,5))
             # Plot fnorm
             ax = axs[1]
             ax.semilogx(self.concs, self.fnorm, 'o') #, label='Exp')
@@ -1682,30 +1685,45 @@ class MST_data():
         else:
             fig, axs = plt.subplots(1)
             ax = axs
-        plt.set_cmap(plt.jet())
+        # Set up color map
+        uconcs = np.unique(self.concs)
+        cmap = plt.set_cmap(plt.jet())
         # Define color map
-        cmap = iter(plt.cm.jet(np.linspace(0,1, len(np.unique(self.concs)))))
+        cmap = iter(plt.cm.jet(np.linspace(0,1, len(np.unique(self.concs))+1)))
         # Plot
-        # Make sure that each conc. only has one color
-        prev_conc = -1 
         lh = []   # Line handles
         alpha=1
         lw =1
 
         # Full plot
+        # Make sure that each conc. only has one color
+        prev_conc = -1 
         for i in range(len(self.concs)):
-            temp, = ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color=cmap.__next__())
-            lh.append(temp)
-        ax.legend(loc='center left', bbox_to_anchor=(.5, 0.5), handles=lh, title="Ligand conc.")
+            if prev_conc != self.concs[i]:
+                temp, = ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color=cmap.__next__())
+                lh.append(temp)
+            else:
+                temp, = ax.plot(self.times, self.decays[:, i], alpha=alpha, lw=lw, color=temp.get_color())
+                print("Conc. double")
+        # setup the colorbar
+        normalize = mcolors.LogNorm(vmin=np.min(self.concs), vmax=np.max(self.concs)) # Or Normalize 
+        scalarmappaple = cm.ScalarMappable(norm=normalize, cmap=plt.cm.jet) 
+        scalarmappaple.set_array(self.concs)
+        cbar = plt.colorbar(scalarmappaple, ax=axs[0])
+        cbar.set_label('Lig. conc. / M', rotation=270) 
+        cbar.ax.get_yaxis().labelpad = 15
+        # Add legend
+        #ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), handles=lh, title="Ligand conc.")
         # ax.set_xlim([dat.iloc[4,1], dat.iloc[-1,1]])
         ax.set_xlabel('Time / s')
         ax.set_ylabel('Norm. fluorescence')
+        ax.set_xlim((np.min(self.times), np.max(self.times)))
 
         # Add hot/cold areas
         if hasattr(self, 'fnorm'):
             ax.axvspan(self.cold-1, self.cold, facecolor='blue', alpha=.5) #, zorder=-20)
             ax.axvspan(self.hot-1, self.hot, facecolor='red', alpha=.5) #, zorder=-20)
-        
+        fig.tight_layout()
         fig.show()
 
         return None
