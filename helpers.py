@@ -1663,9 +1663,10 @@ class MST_data():
         bound0 = self.fnorm[-1]
         half_bound = np.mean((nonbound0, bound0))
         kd0 = self.concs[np.argmin(np.abs(self.fnorm - half_bound))]
-        opt, cov = curve_fit(func, self.concs, self.fnorm, p0=(kd0, nonbound0, bound0)) #, p0=(1E-6, np.min(self.fnorm), np.max(self.fnorm)))
+        opt, cov = curve_fit(func, self.concs, self.fnorm, p0=(kd0, nonbound0, bound0), method='trf') #, p0=(1E-6, np.min(self.fnorm), np.max(self.fnorm)))
         self.fit_opt = opt
         self.fit_cov = cov
+        self.fit_err = np.sqrt(np.diag(cov))
         #self.plot()
         return opt, cov
     
@@ -1677,7 +1678,7 @@ class MST_data():
             ax.semilogx(self.concs, self.fnorm, 'o') #, label='Exp')
             if hasattr(self, 'fit_opt'):
                 concs_dense = np.exp(np.linspace(np.log(self.concs[0]), np.log(self.concs[-1]), 100))
-                ax.semilogx(concs_dense, single_site_kd(self.prot_conc)(concs_dense, *self.fit_opt), label='K$_d=$%.1E$\,$M' % self.fit_opt[0])
+                ax.semilogx(concs_dense, single_site_kd(self.prot_conc)(concs_dense, *self.fit_opt), label='K$_d=$%.1EM$\pm$%.0f%%' % (self.fit_opt[0], self.fit_err[0]/self.fit_opt[0]*100))
                 ax.legend()
             ax.set_xlabel('Ligand concentration / M')
             ax.set_ylabel('Fnorm')
@@ -1685,26 +1686,18 @@ class MST_data():
         else:
             fig, axs = plt.subplots(1)
             ax = axs
-        # Set up color map
-        uconcs = np.unique(self.concs)
-        cmap = plt.set_cmap(plt.jet())
-        # Define color map
-        cmap = iter(plt.cm.jet(np.linspace(0,1, len(np.unique(self.concs))+1)))
         # Plot
         lh = []   # Line handles
         alpha=1
         lw =1
 
-        # Full plot
-        # Make sure that each conc. only has one color
-        prev_conc = -1 
-        for i in range(len(self.concs)):
-            if prev_conc != self.concs[i]:
-                temp, = ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color=cmap.__next__())
-                lh.append(temp)
-            else:
-                temp, = ax.plot(self.times, self.decays[:, i], alpha=alpha, lw=lw, color=temp.get_color())
-                print("Conc. double")
+        # Set up color map
+        uconcs = np.unique(self.concs)
+        #cmap = plt.set_cmap(plt.jet())
+        # Get smallest conc that is not zero (zero cannot be shown in log scale)
+        minconc = np.min(self.concs[self.concs>0])
+        # Define color map
+        cmap = iter(plt.cm.jet(np.linspace(0,1, len(np.unique(self.concs))+1)))
         # setup the colorbar
         normalize = mcolors.LogNorm(vmin=np.min(self.concs), vmax=np.max(self.concs)) # Or Normalize 
         scalarmappaple = cm.ScalarMappable(norm=normalize, cmap=plt.cm.jet) 
@@ -1712,6 +1705,22 @@ class MST_data():
         cbar = plt.colorbar(scalarmappaple, ax=axs[0])
         cbar.set_label('Lig. conc. / M', rotation=270) 
         cbar.ax.get_yaxis().labelpad = 15
+        
+        # Full plot
+        # Make sure that each conc. only has one color
+        prev_conc = -1 
+        for i in range(len(self.concs)):
+            # Exception for 0 concentration (not defined in log scale colormap)
+            if self.concs[i]==0:
+                ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color='k')
+                continue
+            if prev_conc != self.concs[i]:
+                temp, = ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color=cmap.__next__())
+                lh.append(temp)
+            else:
+                temp, = ax.plot(self.times, self.decays[:, i], alpha=alpha, lw=lw, color=temp.get_color())
+                print("Conc. double")
+
         # Add legend
         #ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), handles=lh, title="Ligand conc.")
         # ax.set_xlim([dat.iloc[4,1], dat.iloc[-1,1]])
