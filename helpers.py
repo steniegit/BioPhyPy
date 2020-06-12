@@ -72,6 +72,11 @@ def single_site_kd(conc_prot):
         return single_site(conc_lig, kd, conc_prot, t_bottom, t_top)
     return return_func
 
+def single_site_kd_only(conc_prot, t_bottom, t_top):
+    def return_func(conc_lig, kd):
+        return single_site(conc_lig, kd, conc_prot, t_bottom, t_top)
+    return return_func
+
 def coop_model_jove(conc_lig, kd, n, t_bottom, t_top):
     '''
     Cooperative model to fit apparent Kd from melting temperatures
@@ -1611,6 +1616,8 @@ class MST_data():
         self.times = np.array(dat.iloc[dat_pos:,0]).astype('float32')
         # Get decays
         self.decays = np.array(dat.iloc[dat_pos:,lig_pos_hor]).astype('float32')
+        # Outliers
+        self.outliers = []
         return None
 
     def sort(self):
@@ -1656,17 +1663,30 @@ class MST_data():
             print("This needs to be done before by setting conc_prot!")
             print("Exiting function")
             return None
+        # Remove outliers
+        concs_in, fnorm_in = [], []
+        concs_out, fnorm_out = [], []
+        for i in range(len(self.concs)):
+            if i in self.outliers:
+                concs_out.append(self.concs[i])
+                fnorm_out.append(self.fnorm[i])
+            else:
+                concs_in.append(self.concs[i])
+                fnorm_in.append(self.fnorm[i])                
         # Chose fitting function
         func = single_site_kd(self.prot_conc)
         # Get starting values
-        nonbound0 = self.fnorm[0]
-        bound0 = self.fnorm[-1]
+        nonbound0 = fnorm_in[0]
+        bound0 = fnorm_in[-1]
         half_bound = np.mean((nonbound0, bound0))
-        kd0 = self.concs[np.argmin(np.abs(self.fnorm - half_bound))]
-        opt, cov = curve_fit(func, self.concs, self.fnorm, p0=(kd0, nonbound0, bound0), method='trf') #, p0=(1E-6, np.min(self.fnorm), np.max(self.fnorm)))
+        kd0 = concs_in[np.argmin(np.abs(fnorm_in - half_bound))]
+        bounds = ((0, 0, 0), (np.inf, np.inf, np.inf))
+        opt, cov = curve_fit(func, concs_in, fnorm_in, p0=(kd0, nonbound0, bound0), bounds=bounds) #, p0=(1E-6, np.min(self.fnorm), np.max(self.fnorm)))
         self.fit_opt = opt
         self.fit_cov = cov
         self.fit_err = np.sqrt(np.diag(cov))
+        self.concs_in = concs_in
+        self.fnorm_in = fnorm_in
         #self.plot()
         return opt, cov
     
@@ -1676,6 +1696,9 @@ class MST_data():
             # Plot fnorm
             ax = axs[1]
             ax.semilogx(self.concs, self.fnorm, 'o') #, label='Exp')
+            # Plot outliers in gray
+            for out in self.outliers:
+                ax.semilogx(self.concs[out], self.fnorm[out], 'o', color='gray')
             if hasattr(self, 'fit_opt'):
                 concs_dense = np.exp(np.linspace(np.log(self.concs[0]), np.log(self.concs[-1]), 100))
                 ax.semilogx(concs_dense, single_site_kd(self.prot_conc)(concs_dense, *self.fit_opt), label='K$_d=$%.1EM$\pm$%.0f%%' % (self.fit_opt[0], self.fit_err[0]/self.fit_opt[0]*100))
@@ -1710,6 +1733,11 @@ class MST_data():
         # Make sure that each conc. only has one color
         prev_conc = -1 
         for i in range(len(self.concs)):
+            # if i in self.outliers:
+            #     print(i)
+            #     ax.plot(self.times, self.decays[:, out], alpha=1, lw=lw, color='gray')
+            #     cmap.__next__()
+            #     continue
             # Exception for 0 concentration (not defined in log scale colormap)
             if self.concs[i]==0:
                 ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color='k')
