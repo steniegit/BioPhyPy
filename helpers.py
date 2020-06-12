@@ -1693,15 +1693,13 @@ class MST_data():
     def plot(self):
         if hasattr(self, 'fnorm'):
             fig, axs = plt.subplots(1,2, figsize=(10,5))
-            # Plot fnorm
+            ## Plot outliers in gray
+            #for out in self.outliers:
+            #    ax.semilogx(self.concs[out], self.fnorm[out], 'o', color='gray')
             ax = axs[1]
-            ax.semilogx(self.concs, self.fnorm, 'o') #, label='Exp')
-            # Plot outliers in gray
-            for out in self.outliers:
-                ax.semilogx(self.concs[out], self.fnorm[out], 'o', color='gray')
             if hasattr(self, 'fit_opt'):
                 concs_dense = np.exp(np.linspace(np.log(self.concs[0]), np.log(self.concs[-1]), 100))
-                ax.semilogx(concs_dense, single_site_kd(self.prot_conc)(concs_dense, *self.fit_opt), label='K$_d=$%.1EM$\pm$%.0f%%' % (self.fit_opt[0], self.fit_err[0]/self.fit_opt[0]*100))
+                hp_fit, = ax.semilogx(concs_dense, single_site_kd(self.prot_conc)(concs_dense, *self.fit_opt), label='K$_d=$%.1EM$\pm$%.0f%%' % (self.fit_opt[0], self.fit_err[0]/self.fit_opt[0]*100))
                 ax.legend()
             ax.set_xlabel('Ligand concentration / M')
             ax.set_ylabel('Fnorm')
@@ -1712,6 +1710,7 @@ class MST_data():
         # Plot
         lh = []   # Line handles
         alpha=1
+        alpha_out = .2
         lw =1
 
         # Set up color map
@@ -1720,7 +1719,7 @@ class MST_data():
         # Get smallest conc that is not zero (zero cannot be shown in log scale)
         minconc = np.min(self.concs[self.concs>0])
         # Define color map
-        cmap = iter(plt.cm.jet(np.linspace(0,1, len(np.unique(self.concs))+1)))
+        cmap = iter(plt.cm.jet(np.linspace(0,1, len(np.unique(self.concs))+0)))
         # setup the colorbar
         normalize = mcolors.LogNorm(vmin=np.min(self.concs), vmax=np.max(self.concs)) # Or Normalize 
         scalarmappaple = cm.ScalarMappable(norm=normalize, cmap=plt.cm.jet) 
@@ -1740,15 +1739,36 @@ class MST_data():
             #     continue
             # Exception for 0 concentration (not defined in log scale colormap)
             if self.concs[i]==0:
-                ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color='k')
+                if i in self.outliers:
+                    ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha_out, lw=lw, color='k')
+                    if hasattr(self, 'fnorm'):
+                        axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha_out, lw=lw, color='k')
+                else:
+                    ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color='k')
+                    if hasattr(self, 'fnorm'):
+                        axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color='k')
                 continue
             if prev_conc != self.concs[i]:
-                temp, = ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color=cmap.__next__())
+                if i in self.outliers:
+                    temp, = ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha_out, lw=lw, color=cmap.__next__())
+                    if hasattr(self, 'fnorm'):
+                        axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha_out, lw=lw, color=temp.get_color())
+                else:
+                    temp, = ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color=cmap.__next__())
+                    if hasattr(self, 'fnorm'):
+                        axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color=temp.get_color())
                 lh.append(temp)
             else:
-                temp, = ax.plot(self.times, self.decays[:, i], alpha=alpha, lw=lw, color=temp.get_color())
+                if i in self.outliers:
+                    temp, = ax.plot(self.times, self.decays[:, i], alpha=alpha_out, lw=lw, color=temp.get_color())
+                    if hasattr(self, 'fnorm'):
+                        axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha_out, lw=lw, color=temp.get_color())
+                else:
+                    temp, = ax.plot(self.times, self.decays[:, i], alpha=alpha, lw=lw, color=temp.get_color())
+                    if hasattr(self, 'fnorm'):
+                        axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color=temp.get_color())
                 print("Conc. double")
-
+            
         # Add legend
         #ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), handles=lh, title="Ligand conc.")
         # ax.set_xlim([dat.iloc[4,1], dat.iloc[-1,1]])
