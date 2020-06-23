@@ -1635,6 +1635,9 @@ class MST_data():
         Normalize with values at t <= 0
         '''
         ind_neg = self.times <=0
+        # This uses the maximum for negative times
+        #self.decays /= np.nanmax(self.decays[ind_neg,:], axis=0)
+        # This uses the mean for negative times
         self.decays /= np.mean(self.decays[ind_neg,:], axis=0)
         return None
 
@@ -1702,7 +1705,7 @@ class MST_data():
                 hp_fit, = ax.semilogx(concs_dense, single_site_kd(self.prot_conc)(concs_dense, *self.fit_opt), label='K$_d=$%.1EM$\pm$%.0f%%' % (self.fit_opt[0], self.fit_err[0]/self.fit_opt[0]*100))
                 ax.legend()
             ax.set_xlabel('Ligand concentration / M')
-            ax.set_ylabel('F$_{norm}$ / ' + u'\u2030')
+            ax.set_ylabel('F$_\mathrm{norm}$ / ' + u'\u2030')
             ax = axs[0]
         else:
             fig, axs = plt.subplots(1)
