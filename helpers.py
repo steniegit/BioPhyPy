@@ -1830,6 +1830,10 @@ class MST_data():
         fig.show()
 
         # Save figure
-        fig.savefig(self.fn.replace('.xlsx', '.pdf'))
-
+        if smooth:
+            fig.savefig(self.fn.replace('.xlsx', '_smooth_%i.pdf' % smooth_window))
+            fig.savefig(self.fn.replace('.xlsx', '_smooth_%i.png' % smooth_window), dpi=600)
+        else:
+            fig.savefig(self.fn.replace('.xlsx', '.pdf'))
+            fig.savefig(self.fn.replace('.xlsx', '.png'), dpi=600)
         return None
