@@ -1654,18 +1654,20 @@ class MST_data():
         self.cold = cold
         return None
 
-    def get_kd(self):
+    def get_kd(self, fix_pconc=True):
         '''
         Get Kd from fnorm
         '''
         if not hasattr(self, 'fnorm'):
             print("Fnorm has not been calculated yet!\n Will do that now")
             self.calc_fnorm()
-        if not hasattr(self, 'prot_conc'):
+        if not hasattr(self, 'pconc'):
             print("Protein concentration not specified yet!")
             print("This needs to be done before by setting conc_prot!")
             print("Exiting function")
             return None
+        # Set fix_pconc
+        self.fix_pconc = fix_pconc
         # Remove outliers
         concs_in, fnorm_in = [], []
         concs_out, fnorm_out = [], []
@@ -1677,14 +1679,37 @@ class MST_data():
                 concs_in.append(self.concs[i])
                 fnorm_in.append(self.fnorm[i])                
         # Chose fitting function
-        func = single_site_kd(self.prot_conc)
+        if fix_pconc:
+            func = single_site_kd(self.pconc)
+            print("Will fit with fixed protein concentration of %.1e." % self.pconc)
+        else:
+            func = single_site
+            print("Will fit with variable protein concentration.")
         # Get starting values
         nonbound0 = fnorm_in[0]
         bound0 = fnorm_in[-1]
         half_bound = np.mean((nonbound0, bound0))
         kd0 = concs_in[np.argmin(np.abs(fnorm_in - half_bound))]
-        bounds = ((0, 0, 0), (np.inf, np.inf, np.inf))
-        opt, cov = curve_fit(func, concs_in, fnorm_in, p0=(kd0, nonbound0, bound0), bounds=bounds) #, p0=(1E-6, np.min(self.fnorm), np.max(self.fnorm)))
+        pconc0 = self.pconc
+        if fix_pconc:
+            bounds = ((0, 0, 0), (np.inf, np.inf, np.inf))
+            p0 = (kd0, nonbound0, bound0)
+        else:
+            bounds = ((0, 0, 0, 0), (np.inf, np.inf, np.inf, np.inf))
+            p0 = (kd0, pconc0, nonbound0, bound0)
+        opt, cov = curve_fit(func, concs_in, fnorm_in, p0=p0, bounds=bounds) #, p0=(1E-6, np.min(self.fnorm), np.max(self.fnorm)))
+        # Print results
+        err = np.sqrt(np.diag(cov))
+        if fix_pconc:
+            print("Error for nonbound: %.2f+-%.2f%%" % (opt[1], 100*err[1]/opt[1]))
+            print("Error for bound: %.2f+-%.2f%%" % (opt[2], 100*err[2]/opt[2]))
+        else:
+            print("Error for pconc: %.1e+-%.1f%%" % (opt[1], 100*err[1]/opt[1]))
+            print("Error for nonbound: %.2f+-%.2f%%" % (opt[2], 100*err[2]/opt[2]))
+            print("Error for bound: %.2f+-%.2f%%" % (opt[3], 100*err[3]/opt[3]))
+            print("Updated concentration from %.1e to %.1e" % (self.pconc, opt[1])) 
+            self.pconc = opt[1]
+        # Write results to instance
         self.fit_opt = opt
         self.fit_cov = cov
         self.fit_err = np.sqrt(np.diag(cov))
@@ -1693,7 +1718,7 @@ class MST_data():
         #self.plot()
         return opt, cov
     
-    def plot(self):
+    def plot(self, smooth=False, smooth_window=51):
         if hasattr(self, 'fnorm'):
             fig, axs = plt.subplots(1,2, figsize=(10,5))
             ## Plot outliers in gray
@@ -1702,7 +1727,19 @@ class MST_data():
             ax = axs[1]
             if hasattr(self, 'fit_opt'):
                 concs_dense = np.exp(np.linspace(np.log(self.concs[0]), np.log(self.concs[-1]), 100))
-                hp_fit, = ax.semilogx(concs_dense, single_site_kd(self.prot_conc)(concs_dense, *self.fit_opt), label='K$_d=$%.1EM$\pm$%.0f%%' % (self.fit_opt[0], self.fit_err[0]/self.fit_opt[0]*100))
+                kd_err = np.sqrt(self.fit_cov[0,0])
+                if self.fix_pconc:
+                    func = single_site_kd(self.pconc)
+                    model_upper = func(concs_dense, *(self.fit_opt - np.array([kd_err, 0, 0])))
+                    model_lower = func(concs_dense, *(self.fit_opt + np.array([kd_err, 0, 0])))
+                else:
+                    func = single_site
+                    model_upper = func(concs_dense, *(self.fit_opt - np.array([kd_err, 0, 0, 0])))
+                    model_lower = func(concs_dense, *(self.fit_opt + np.array([kd_err, 0, 0, 0])))
+                # Upper and lower limits for model (based on KD error)
+ 
+                hp_fit, = ax.semilogx(concs_dense, func(concs_dense, *self.fit_opt), label='K$_d=$%.1EM$\pm$%.0f%%' % (self.fit_opt[0], self.fit_err[0]/self.fit_opt[0]*100))
+                ax.fill_between(concs_dense, model_upper, model_lower, facecolor=hp_fit.get_color(), alpha=.5, zorder=-20)
                 ax.legend()
             ax.set_xlabel('Ligand concentration / M')
             ax.set_ylabel('F$_\mathrm{norm}$ / ' + u'\u2030')
@@ -1730,6 +1767,12 @@ class MST_data():
         cbar = plt.colorbar(scalarmappaple, ax=axs[0])
         cbar.set_label('Lig. conc. / M', rotation=270) 
         cbar.ax.get_yaxis().labelpad = 15
+
+        # Smooth data if chosen
+        if smooth:
+            data_temp = ssi.savgol_filter(self.decays, smooth_window, 2, axis=0)
+        else:
+            data_temp = self.decays
         
         # Full plot
         # Make sure that each conc. only has one color
@@ -1743,31 +1786,31 @@ class MST_data():
             # Exception for 0 concentration (not defined in log scale colormap)
             if self.concs[i]==0:
                 if i in self.outliers:
-                    ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha_out, lw=lw, color='k')
+                    ax.plot(self.times, data_temp[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha_out, lw=lw, color='k')
                     if hasattr(self, 'fnorm'):
                         axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha_out, lw=lw, color='k')
                 else:
-                    ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color='k')
+                    ax.plot(self.times, data_temp[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color='k')
                     if hasattr(self, 'fnorm'):
                         axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color='k')
                 continue
             if prev_conc != self.concs[i]:
                 if i in self.outliers:
-                    temp, = ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha_out, lw=lw, color=cmap.__next__())
+                    temp, = ax.plot(self.times, data_temp[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha_out, lw=lw, color=cmap.__next__())
                     if hasattr(self, 'fnorm'):
                         axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha_out, lw=lw, color=temp.get_color())
                 else:
-                    temp, = ax.plot(self.times, self.decays[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color=cmap.__next__())
+                    temp, = ax.plot(self.times, data_temp[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color=cmap.__next__())
                     if hasattr(self, 'fnorm'):
                         axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color=temp.get_color())
                 lh.append(temp)
             else:
                 if i in self.outliers:
-                    temp, = ax.plot(self.times, self.decays[:, i], alpha=alpha_out, lw=lw, color=temp.get_color())
+                    temp, = ax.plot(self.times, data_temp[:, i], alpha=alpha_out, lw=lw, color=temp.get_color())
                     if hasattr(self, 'fnorm'):
                         axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha_out, lw=lw, color=temp.get_color())
                 else:
-                    temp, = ax.plot(self.times, self.decays[:, i], alpha=alpha, lw=lw, color=temp.get_color())
+                    temp, = ax.plot(self.times, data_temp[:, i], alpha=alpha, lw=lw, color=temp.get_color())
                     if hasattr(self, 'fnorm'):
                         axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color=temp.get_color())
                 print("Conc. double")
