@@ -1738,7 +1738,7 @@ class MST_data():
                     model_lower = func(concs_dense, *(self.fit_opt + np.array([kd_err, 0, 0, 0])))
                 # Upper and lower limits for model (based on KD error)
  
-                hp_fit, = ax.semilogx(concs_dense, func(concs_dense, *self.fit_opt), label='K$_d=$%.1EM$\pm$%.0f%%' % (self.fit_opt[0], self.fit_err[0]/self.fit_opt[0]*100))
+                hp_fit, = ax.semilogx(concs_dense, func(concs_dense, *self.fit_opt), label='K$_\mathrm{D}=$%.1EM$\pm$%.0f%%' % (self.fit_opt[0], self.fit_err[0]/self.fit_opt[0]*100))
                 ax.fill_between(concs_dense, model_upper, model_lower, facecolor=hp_fit.get_color(), alpha=.5, zorder=-20)
                 ax.legend()
             ax.set_xlabel('Ligand concentration / M')
