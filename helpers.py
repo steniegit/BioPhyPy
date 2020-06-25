@@ -1709,12 +1709,29 @@ class MST_data():
             print("Error for bound: %.2f+-%.2f%%" % (opt[3], 100*err[3]/opt[3]))
             print("Updated concentration from %.1e to %.1e" % (self.pconc, opt[1])) 
             self.pconc = opt[1]
+        # Calculate dense curves for plot
+        concs_dense = np.exp(np.linspace(np.log(self.concs[0]), np.log(self.concs[-1]), 100))
+        kd_err = np.sqrt(cov[0,0])
+        if self.fix_pconc:
+            func = single_site_kd(self.pconc)
+            fit_upper = func(concs_dense, *(opt - np.array([kd_err, 0, 0])))
+            fit_lower = func(concs_dense, *(opt + np.array([kd_err, 0, 0])))
+        else:
+            func = single_site
+            fit_upper = func(concs_dense, *(opt - np.array([kd_err, 0, 0, 0])))
+            fit_lower = func(concs_dense, *(opt + np.array([kd_err, 0, 0, 0])))
+        fit = func(concs_dense, *opt)
         # Write results to instance
         self.fit_opt = opt
         self.fit_cov = cov
         self.fit_err = np.sqrt(np.diag(cov))
         self.concs_in = concs_in
         self.fnorm_in = fnorm_in
+        self.func = func
+        self.concs_dense = concs_dense
+        self.fit = fit
+        self.fit_upper = fit_upper
+        self.fit_lower = fit_lower
         #self.plot()
         return opt, cov
     
@@ -1726,20 +1743,9 @@ class MST_data():
             #    ax.semilogx(self.concs[out], self.fnorm[out], 'o', color='gray')
             ax = axs[1]
             if hasattr(self, 'fit_opt'):
-                concs_dense = np.exp(np.linspace(np.log(self.concs[0]), np.log(self.concs[-1]), 100))
-                kd_err = np.sqrt(self.fit_cov[0,0])
-                if self.fix_pconc:
-                    func = single_site_kd(self.pconc)
-                    model_upper = func(concs_dense, *(self.fit_opt - np.array([kd_err, 0, 0])))
-                    model_lower = func(concs_dense, *(self.fit_opt + np.array([kd_err, 0, 0])))
-                else:
-                    func = single_site
-                    model_upper = func(concs_dense, *(self.fit_opt - np.array([kd_err, 0, 0, 0])))
-                    model_lower = func(concs_dense, *(self.fit_opt + np.array([kd_err, 0, 0, 0])))
                 # Upper and lower limits for model (based on KD error)
- 
-                hp_fit, = ax.semilogx(concs_dense, func(concs_dense, *self.fit_opt), label='K$_\mathrm{D}=$%.1EM$\pm$%.0f%%' % (self.fit_opt[0], self.fit_err[0]/self.fit_opt[0]*100))
-                ax.fill_between(concs_dense, model_upper, model_lower, facecolor=hp_fit.get_color(), alpha=.5, zorder=-20)
+                hp_fit, = ax.semilogx(self.concs_dense, self.fit, label='K$_\mathrm{D}=$%.1EM$\pm$%.0f%%' % (self.fit_opt[0], self.fit_err[0]/self.fit_opt[0]*100))
+                ax.fill_between(self.concs_dense, self.fit_upper, self.fit_lower, facecolor=hp_fit.get_color(), alpha=.5, zorder=-20)
                 ax.legend()
             ax.set_xlabel('Ligand concentration / M')
             ax.set_ylabel('F$_\mathrm{norm}$ / ' + u'\u2030')
