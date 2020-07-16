@@ -1770,7 +1770,7 @@ class MST_data():
         normalize = mcolors.LogNorm(vmin=np.min(self.concs), vmax=np.max(self.concs)) # Or Normalize 
         scalarmappaple = cm.ScalarMappable(norm=normalize, cmap=plt.cm.jet) 
         scalarmappaple.set_array(self.concs)
-        cbar = plt.colorbar(scalarmappaple, ax=axs[0])
+        cbar = plt.colorbar(scalarmappaple, ax=ax)
         cbar.set_label('Lig. conc. / M', rotation=270) 
         cbar.ax.get_yaxis().labelpad = 15
 
