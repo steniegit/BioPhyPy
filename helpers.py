@@ -1843,3 +1843,21 @@ class MST_data():
             fig.savefig(self.fn.replace('.xlsx', '.pdf'))
             fig.savefig(self.fn.replace('.xlsx', '.png'), dpi=600)
         return None
+
+def read_CD(fn):
+    '''
+    Reads comma separated csv from Chirascan export
+    
+    Required: 
+    fn: File name
+
+    Returns: spectrum as ndarray
+    '''
+    # List with entries
+    spectrum = []
+    with open(fn, 'r') as f:
+        for line in f:
+            if line[0].isdigit():
+                spectrum.append(line.strip().split(','))
+                # Convert to array
+    return np.array(spectrum, dtype=float)
