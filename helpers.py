@@ -1844,20 +1844,61 @@ class MST_data():
             fig.savefig(self.fn.replace('.xlsx', '.png'), dpi=600)
         return None
 
-def read_CD(fn):
+class CD_data():
     '''
-    Reads comma separated csv from Chirascan export
-    
-    Required: 
-    fn: File name
+    This is a class to read in Chirascan CD data 
+    that has been exported as csv
+    '''
+    def __init__(self, fn=''):
+        '''
+        Initialize ms data
+        fn: File name
+        '''
+        self.fn = fn
+        #self.path = path
+        # Load data
+        self.read_CD()
+        self.average()
+        return None
 
-    Returns: spectrum as ndarray
-    '''
-    # List with entries
-    spectrum = []
-    with open(fn, 'r') as f:
-        for line in f:
-            if line[0].isdigit():
-                spectrum.append(line.strip().split(','))
-                # Convert to array
-    return np.array(spectrum, dtype=float)
+    def read_CD(self):
+        '''
+        Reads comma separated csv from Chirascan export
+        
+        Required: 
+        fn: File name
+        
+        Returns: spectrum as ndarray
+        '''
+        # List with entries
+        spectrum = []
+        with open(self.fn, 'r') as f:
+            for line in f:
+                if line[0].isdigit():
+                    spectrum.append(line.strip().split(','))
+                    # Convert to array
+        cd = np.array(spectrum, dtype=float)
+        self.x = cd[:,0]
+        self.y = cd[:,1:]
+        return cd
+
+    def average(self):
+        '''
+        Averages y values
+        '''
+        self.av_y = np.average(self.y, axis=1)
+        return None
+
+    def savetxt(self):
+        # Generate first part of header
+        header = '%18s' % 'Wavelength/nm'
+        for i in range(self.y.shape[1]):
+            header += '%21s' % ('Repeat %i' % (i+1))
+        if hasattr(self, 'av_y'):
+            dat = np.hstack((self.x.reshape(-1,1), self.y, self.av_y.reshape(-1,1)))
+            header += '%21s' % 'Average'
+        else:
+            dat = np.hstack((self.x.reshape(-1,1), self.y))
+        np.savetxt(self.fn.replace('.csv', '') + '.txt', dat, fmt='%20.4e', header=header)
+        print("Text file saved as %s" % (self.fn.replace('.csv', '') + '.txt'))
+    
