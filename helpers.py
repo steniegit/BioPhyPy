@@ -1837,11 +1837,11 @@ class MST_data():
 
         # Save figure
         if smooth:
-            fig.savefig(self.fn.replace('.xlsx', '_smooth_%i.pdf' % smooth_window))
-            fig.savefig(self.fn.replace('.xlsx', '_smooth_%i.png' % smooth_window), dpi=600)
+            fig.savefig(self.fn.replace('.xlsx', '_pconc_%.1EM_smooth_%i.pdf' % (self.pconc, smooth_window)))
+            fig.savefig(self.fn.replace('.xlsx', '_pconc_%.1EM_smooth_%i.png' % (self.pconc, smooth_window)), dpi=600)
         else:
-            fig.savefig(self.fn.replace('.xlsx', '.pdf'))
-            fig.savefig(self.fn.replace('.xlsx', '.png'), dpi=600)
+            fig.savefig(self.fn.replace('.xlsx', '_pconc_%.1EM.pdf' % self.pconc))
+            fig.savefig(self.fn.replace('.xlsx', '_pconc_%.1EM.png' % self.pconc), dpi=600)
         return None
 
 class CD_data():
@@ -1899,6 +1899,6 @@ class CD_data():
             header += '%21s' % 'Average'
         else:
             dat = np.hstack((self.x.reshape(-1,1), self.y))
-        np.savetxt(self.fn.replace('.csv', '') + '.txt', dat, fmt='%20.4e', header=header)
+        np.savetxt(self.fn.replace('.csv', '') + '.txt', dat, fmt='%20.10f', header=header)
         print("Text file saved as %s" % (self.fn.replace('.csv', '') + '.txt'))
     
