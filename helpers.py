@@ -1652,11 +1652,15 @@ class MST_data():
         self.fnorm = F_hot/F_cold
         self.hot = hot
         self.cold = cold
+        self.F_cold = F_cold
+        self.F_hot = F_hot
         return None
 
-    def get_kd(self, fix_pconc=True):
+    def get_kd(self, fix_pconc=True, use_fluo=False):
         '''
         Get Kd from fnorm
+        fix_pconc: Fix protein concentration, otherwise it will be fit
+        use_fluo: Use initial fluorescence instead of Fnorm
         '''
         if not hasattr(self, 'fnorm'):
             print("Fnorm has not been calculated yet!\n Will do that now")
