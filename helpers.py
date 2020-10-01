@@ -1641,20 +1641,118 @@ class MST_data():
         self.decays /= np.mean(self.decays[ind_neg,:], axis=0)
         return None
 
-    def calc_fnorm(self, hot=5, cold=0):
+    def calc_fnorm(self, decays, hot=5, cold=0):
         '''
         This calculates fnorm
         '''
         ind_hot = (self.times >= hot-1) * (self.times <= hot)
         ind_cold = (self.times >= cold-1) * (self.times <= cold)
-        F_cold = np.mean(self.decays[ind_cold,:], axis=0)
-        F_hot = np.mean(self.decays[ind_hot,:], axis=0)
+        F_cold = np.mean(decays[ind_cold,:], axis=0)
+        F_hot = np.mean(decays[ind_hot,:], axis=0)
         self.fnorm = F_hot/F_cold
         self.hot = hot
         self.cold = cold
         self.F_cold = F_cold
         self.F_hot = F_hot
+        return self.fnorm
+
+    def plot_init_fluo(self, fix_pconc=False, hot=20, cold=0):
+        '''
+        This extracts the initial fluorescence and plots it vs conc
+        '''
+        # Obtain indices for times < 0
+        inds = self.times <= 0
+        # Do linear regression
+        p_params = np.polyfit(self.times[inds], self.decays[inds], 1)
+        # Initial values
+        f_init = [np.polyval(p_params[:,i], self.times[0]) for i in range(p_params.shape[1])]
+        f_bleach = np.array([np.polyval(p_params[:,i], self.times[inds]) for i in range(p_params.shape[1])]).T
+        f_bl = np.array([np.polyval(p_params[:,i], self.times) for i in range(p_params.shape[1])]).T
+        fnorm = self.calc_fnorm(self.decays, hot=hot, cold=cold)
+        fnorm_bl = self.calc_fnorm(self.decays - f_bl +1, hot=hot, cold=cold)
+        # Fit f_init
+        fit_init, fit_init_opt, fit_init_err = self.fit_kd(self.concs, f_init, fix_pconc=fix_pconc) 
+        fit_bleach, fit_bleach_opt, fit_bleach_err = self.fit_kd(self.concs, -p_params[0], fix_pconc=True)
+        fit_fnorm, fit_fnorm_opt, fit_fnorm_err = self.fit_kd(self.concs, fnorm , fix_pconc=fix_pconc)
+        fit_fnorm_bl, fit_fnorm_bl_opt, fit_fnorm_bl_err = self.fit_kd(self.concs, fnorm_bl , fix_pconc=fix_pconc)
+        
+        # Do fit for f_bleach
+        # Create plot
+        fig, axs = plt.subplots(3,2, figsize=(10,7.5))
+        # Plot initial fluorescence
+        ax = axs[0,0]
+        ax.set_title('Non-normalized MST signal')
+        ax.plot(self.times, self.decays)
+        ax.plot(self.times, f_bl, '--', lw=.5)
+        ax.set_ylabel('Fluorescence / Counts')
+        ax.set_xlabel('Time / s')
+        ax = axs[1,0]
+        ax.set_title('Bleach-corrected signal')
+        ax.plot(self.times, self.decays - f_bl)
+        ax.set_ylabel('Fluorescence / Counts')
+        ax.set_xlabel('Time / s')
+        ax = axs[0,1]
+        ax.semilogx(self.concs, fnorm, 'o')
+        ax.semilogx(self.concs, fit_fnorm, '--', zorder=-20)
+        ax.axvline(fit_fnorm_opt[0], linestyle='--')
+        ax.set_xlabel('Ligand concentration / M')
+        ax.set_ylabel('F$_\mathrm{norm}$ / ' + u'\u2030')
+        ax = axs[1,1]
+        ax.semilogx(self.concs, fnorm_bl, 'o')
+        #ax.semilogx(self.concs, fit_fnorm_bl, '--', zorder=-20)
+        #ax.axvline(fit_fnorm_bl_opt[0], linestyle='--')
+        ax.set_xlabel('Ligand concentration / M')
+        ax.set_ylabel('F$_\mathrm{norm,bl}$ / ' + u'\u2030')
+        ax = axs[2,0]
+        ax.set_title('Initial fluorescence vs. ligand conc.')
+        ax.semilogx(self.concs, fnorm, 'o')
+        ax.semilogx(self.concs, fit_fnorm, '--', zorder=-20)
+        ax.axvline(fit_init_opt[0], linestyle='--')
+        ax.set_xlabel('Ligand concentration / M')
+        ax.set_ylabel('F$_\mathrm{init}$ / Counts')
+        # Plot bleach rate
+        ax = axs[2,1]
+        ax.set_title('Bleaching rate vs. ligand conc.')
+        ax.semilogx(self.concs, -p_params[0], 'o')
+        ax.semilogx(self.concs, fit_bleach, '--', zorder=-20)
+        ax.axvline(fit_bleach_opt[0], linestyle='--')
+        ax.set_xlabel('Ligand concentration / M')
+        ax.set_ylabel('Bleach rate / Counts/s')
+        fig.tight_layout()
+        fig.show()
+        # Change xlim
+        for ax in axs[:2,0]:
+            ax.set_xlim([np.nanmin(self.times), np.nanmax(self.times)])
+        for ax in axs[:,1]:
+            ax.set_xlim([np.floor(np.log10(self.concs[0])), np.ceil(np.log10(self.concs[-1]))])
+        axs[1,1].set_xlim([np.floor(np.log10(self.concs[0])), np.ceil(np.log10(self.concs[-1]))])
         return None
+
+    def fit_kd(self,concs, y, fix_pconc=False):
+       # Chose fitting function
+        if fix_pconc:
+            func = single_site_kd(self.pconc)
+            print("Will fit with fixed protein concentration of %.1e." % self.pconc)
+        else:
+            func = single_site
+            print("Will fit with variable protein concentration.")
+        # Get starting values
+        nonbound0 = y[0]
+        bound0 = y[-1]
+        half_bound = np.mean((nonbound0, bound0))
+        kd0 = concs[np.argmin(np.abs(y - half_bound))]
+        pconc0 = self.pconc
+        if fix_pconc:
+            bounds = ((0, -np.inf, -np.inf), (np.inf, np.inf, np.inf))
+            p0 = (kd0, nonbound0, bound0)
+        else:
+            bounds = ((0, 0, -np.inf, -np.inf), (np.inf, np.inf, np.inf, np.inf))
+            p0 = (kd0, pconc0, nonbound0, bound0)
+        opt, cov = curve_fit(func, concs, y, p0=p0, bounds=bounds) #, p0=(1E-6, np.min(self.fnorm), np.max(self.fnorm)))
+        # Print results
+        err = np.sqrt(np.diag(cov))
+        fit = func(concs, *opt)
+        return fit, opt, err
 
     def get_kd(self, fix_pconc=True, use_fluo=False):
         '''
