@@ -59,8 +59,16 @@ def single_site(conc_lig, kd, conc_prot, t_bottom, t_top):
     Determination of Protein-ligand Interactions Using Differential Scanning Fluorimetry.
     J. Vis. Exp. (91), e51809, doi:10.3791/51809 (2014).
     '''
-    expr_sqrt = (conc_prot-kd-conc_lig+np.sqrt(((conc_prot+conc_lig+kd)**2)-(4*conc_prot*conc_lig))) / (2*conc_prot)
-    return t_bottom + ((t_top - t_bottom)*(1-expr_sqrt))
+    # Derived from dissociation constant: Kd = [P][L]/[PL]
+    # With [L] = [L]_0 - [PL] and [P] = [P]_0 - [PL]
+    # we get this expression for the complex concentration [PL]
+    complex_conc = (conc_lig + conc_prot + kd)/2 - np.sqrt((conc_lig + conc_prot + kd)**2 /4 - conc_lig*conc_prot)
+    # Complexation degree (0 to 1)
+    compl_degree = complex_conc/conc_prot
+    # Old equation, identical to the one now used
+    #expr_sqrt = (conc_prot-kd-conc_lig+np.sqrt(((conc_prot+conc_lig+kd)**2)-(4*conc_prot*conc_lig))) / (2*conc_prot)
+    # return t_bottom + (t_top - t_bottom)*(1-expr_sqrt)
+    return t_bottom + (t_top - t_bottom)*compl_degree
 
 def single_site_kd(conc_prot):
     '''
@@ -1641,14 +1649,14 @@ class MST_data():
         self.decays /= np.mean(self.decays[ind_neg,:], axis=0)
         return None
 
-    def calc_fnorm(self, decays, hot=5, cold=0):
+    def calc_fnorm(self, hot=20, cold=0):
         '''
         This calculates fnorm
         '''
         ind_hot = (self.times >= hot-1) * (self.times <= hot)
         ind_cold = (self.times >= cold-1) * (self.times <= cold)
-        F_cold = np.mean(decays[ind_cold,:], axis=0)
-        F_hot = np.mean(decays[ind_hot,:], axis=0)
+        F_cold = np.mean(self.decays[ind_cold,:], axis=0)
+        F_hot = np.mean(self.decays[ind_hot,:], axis=0)
         self.fnorm = F_hot/F_cold
         self.hot = hot
         self.cold = cold
@@ -1669,10 +1677,12 @@ class MST_data():
         f_bleach = np.array([np.polyval(p_params[:,i], self.times[inds]) for i in range(p_params.shape[1])]).T
         f_bl = np.array([np.polyval(p_params[:,i], self.times) for i in range(p_params.shape[1])]).T
         fnorm = self.calc_fnorm(self.decays, hot=hot, cold=cold)
-        fnorm_bl = self.calc_fnorm(self.decays - f_bl +1, hot=hot, cold=cold)
+        # Calculate new fnorm with bleach corrected data
+        # No cold region necessary nor possible (since it's zero)
+        fnorm_bl = self.calc_fnorm(self.decays - f_bl, hot=hot, cold=cold, no_cold=True)
         # Fit f_init
-        fit_init, fit_init_opt, fit_init_err = self.fit_kd(self.concs, f_init, fix_pconc=fix_pconc) 
-        fit_bleach, fit_bleach_opt, fit_bleach_err = self.fit_kd(self.concs, -p_params[0], fix_pconc=True)
+        fit_f_init, fit_f_init_opt, fit_f_init_err = self.fit_kd(self.concs, f_init, fix_pconc=fix_pconc) 
+        fit_f_bleach, fit_f_bleach_opt, fit_f_bleach_err = self.fit_kd(self.concs, -p_params[0], fix_pconc=True)
         fit_fnorm, fit_fnorm_opt, fit_fnorm_err = self.fit_kd(self.concs, fnorm , fix_pconc=fix_pconc)
         fit_fnorm_bl, fit_fnorm_bl_opt, fit_fnorm_bl_err = self.fit_kd(self.concs, fnorm_bl , fix_pconc=fix_pconc)
         
@@ -1699,33 +1709,37 @@ class MST_data():
         ax.set_ylabel('F$_\mathrm{norm}$ / ' + u'\u2030')
         ax = axs[1,1]
         ax.semilogx(self.concs, fnorm_bl, 'o')
-        #ax.semilogx(self.concs, fit_fnorm_bl, '--', zorder=-20)
-        #ax.axvline(fit_fnorm_bl_opt[0], linestyle='--')
+        ax.semilogx(self.concs, fit_fnorm_bl, '--', zorder=-20)
+        ax.axvline(fit_fnorm_bl_opt[0], linestyle='--')
         ax.set_xlabel('Ligand concentration / M')
-        ax.set_ylabel('F$_\mathrm{norm,bl}$ / ' + u'\u2030')
+        ax.set_ylabel('F$_\mathrm{norm,bl}$ / Counts' )
         ax = axs[2,0]
         ax.set_title('Initial fluorescence vs. ligand conc.')
-        ax.semilogx(self.concs, fnorm, 'o')
-        ax.semilogx(self.concs, fit_fnorm, '--', zorder=-20)
-        ax.axvline(fit_init_opt[0], linestyle='--')
+        ax.semilogx(self.concs, f_init, 'o')
+        ax.semilogx(self.concs, fit_f_init, '--', zorder=-20)
+        ax.axvline(fit_f_init_opt[0], linestyle='--')
         ax.set_xlabel('Ligand concentration / M')
         ax.set_ylabel('F$_\mathrm{init}$ / Counts')
         # Plot bleach rate
         ax = axs[2,1]
         ax.set_title('Bleaching rate vs. ligand conc.')
         ax.semilogx(self.concs, -p_params[0], 'o')
-        ax.semilogx(self.concs, fit_bleach, '--', zorder=-20)
-        ax.axvline(fit_bleach_opt[0], linestyle='--')
+        ax.semilogx(self.concs, fit_f_bleach, '--', zorder=-20)
+        ax.axvline(fit_f_bleach_opt[0], linestyle='--')
         ax.set_xlabel('Ligand concentration / M')
         ax.set_ylabel('Bleach rate / Counts/s')
-        fig.tight_layout()
-        fig.show()
+        # Plot regions
+        for ax in axs[:2,0]:
+            ax.axvspan(self.hot-1, self.hot, facecolor='red', alpha=.5)
+        axs[0,0].axvspan(self.cold-1, self.cold, facecolor='blue', alpha=.5)
         # Change xlim
         for ax in axs[:2,0]:
             ax.set_xlim([np.nanmin(self.times), np.nanmax(self.times)])
         for ax in axs[:,1]:
             ax.set_xlim([np.floor(np.log10(self.concs[0])), np.ceil(np.log10(self.concs[-1]))])
         axs[1,1].set_xlim([np.floor(np.log10(self.concs[0])), np.ceil(np.log10(self.concs[-1]))])
+        fig.tight_layout()
+        fig.show()
         return None
 
     def fit_kd(self,concs, y, fix_pconc=False):
