@@ -1649,7 +1649,7 @@ class MST_data():
         self.decays /= np.mean(self.decays[ind_neg,:], axis=0)
         return None
 
-    def calc_fnorm(self, hot=20, cold=0):
+    def calc_fnorm(self, hot=20, cold=0, no_cold=False):
         '''
         This calculates fnorm
         '''
@@ -1657,12 +1657,17 @@ class MST_data():
         ind_cold = (self.times >= cold-1) * (self.times <= cold)
         F_cold = np.mean(self.decays[ind_cold,:], axis=0)
         F_hot = np.mean(self.decays[ind_hot,:], axis=0)
-        self.fnorm = F_hot/F_cold
+        if no_cold:
+            # This is if only hot region is used (e.g. because cold is 0)
+            fnorm = F_hot
+        else:
+            fnorm = F_hot/F_cold
+        self.fnorm = fnorm
         self.hot = hot
         self.cold = cold
         self.F_cold = F_cold
         self.F_hot = F_hot
-        return self.fnorm
+        return fnorm
 
     def plot_init_fluo(self, fix_pconc=False, hot=20, cold=0):
         '''
@@ -1676,70 +1681,100 @@ class MST_data():
         f_init = [np.polyval(p_params[:,i], self.times[0]) for i in range(p_params.shape[1])]
         f_bleach = np.array([np.polyval(p_params[:,i], self.times[inds]) for i in range(p_params.shape[1])]).T
         f_bl = np.array([np.polyval(p_params[:,i], self.times) for i in range(p_params.shape[1])]).T
-        fnorm = self.calc_fnorm(self.decays, hot=hot, cold=cold)
+        fnorm = self.calc_fnorm(hot=hot, cold=cold)
         # Calculate new fnorm with bleach corrected data
         # No cold region necessary nor possible (since it's zero)
-        fnorm_bl = self.calc_fnorm(self.decays - f_bl, hot=hot, cold=cold, no_cold=True)
+        decays_init = self.decays
+        self.decays = self.decays - f_bl
+        fnorm_bl = self.calc_fnorm(hot=hot, cold=cold, no_cold=True)
+        # Move back
+        self.decays = decays_init
         # Fit f_init
         fit_f_init, fit_f_init_opt, fit_f_init_err = self.fit_kd(self.concs, f_init, fix_pconc=fix_pconc) 
-        fit_f_bleach, fit_f_bleach_opt, fit_f_bleach_err = self.fit_kd(self.concs, -p_params[0], fix_pconc=True)
+        fit_f_bleach, fit_f_bleach_opt, fit_f_bleach_err = self.fit_kd(self.concs, -p_params[0], fix_pconc=fix_pconc)
         fit_fnorm, fit_fnorm_opt, fit_fnorm_err = self.fit_kd(self.concs, fnorm , fix_pconc=fix_pconc)
         fit_fnorm_bl, fit_fnorm_bl_opt, fit_fnorm_bl_err = self.fit_kd(self.concs, fnorm_bl , fix_pconc=fix_pconc)
         
         # Do fit for f_bleach
         # Create plot
-        fig, axs = plt.subplots(3,2, figsize=(10,7.5))
+        #fig, axs = plt.subplots(2,2, figsize=(10,7.5))
+        fig = plt.figure(figsize=(10,7.5)) # constrained_layout=True
+        axs = []
+        gs = fig.add_gridspec(2,2)
+        axs.append(fig.add_subplot(gs[0,:]))
+        axs.append(fig.add_subplot(gs[1,0]))
+        axs.append(fig.add_subplot(gs[1,1]))
         # Plot initial fluorescence
-        ax = axs[0,0]
+        ax = axs[0]
         ax.set_title('Non-normalized MST signal')
-        ax.plot(self.times, self.decays)
-        ax.plot(self.times, f_bl, '--', lw=.5)
+        self.plot_colored(ax, self.times, self.decays, self.concs)
+        self.add_colorbar(ax, self.concs)
+        #ax.plot(self.times, self.decays)
+        #ax.plot(self.times, f_bl, '--', lw=.5)
+        #self.plot_colored(ax, self.times, f_bl, self.concs, linestyle='--', lw=.5)
         ax.set_ylabel('Fluorescence / Counts')
         ax.set_xlabel('Time / s')
-        ax = axs[1,0]
-        ax.set_title('Bleach-corrected signal')
-        ax.plot(self.times, self.decays - f_bl)
-        ax.set_ylabel('Fluorescence / Counts')
-        ax.set_xlabel('Time / s')
-        ax = axs[0,1]
-        ax.semilogx(self.concs, fnorm, 'o')
-        ax.semilogx(self.concs, fit_fnorm, '--', zorder=-20)
-        ax.axvline(fit_fnorm_opt[0], linestyle='--')
+        # ax = axs[1,0]
+        # ax.set_title('Bleach-corrected signal')
+        # self.plot_colored(ax, self.times, self.decays - f_bl, self.concs)
+        # self.add_colorbar(ax, self.concs)
+        # ax.set_ylabel('Fluorescence / Counts')
+        # ax.set_xlabel('Time / s')
+        ax = axs[1]
+        ax.set_title('MST analysis')
+        self.plot_colored(ax, self.concs, fnorm, self.concs)
+        label = "$K_D$=%.0EM$\pm%.0f$" % (fit_fnorm_opt[0], fit_fnorm_err[0] / fit_fnorm_opt[0]  * 100) +'%' 
+        ax.semilogx(self.concs, fit_fnorm, '--', zorder=-20, label=label)
+        ax.legend()
+        #ax.axvline(fit_fnorm_opt[0], linestyle='--')
         ax.set_xlabel('Ligand concentration / M')
         ax.set_ylabel('F$_\mathrm{norm}$ / ' + u'\u2030')
-        ax = axs[1,1]
-        ax.semilogx(self.concs, fnorm_bl, 'o')
-        ax.semilogx(self.concs, fit_fnorm_bl, '--', zorder=-20)
-        ax.axvline(fit_fnorm_bl_opt[0], linestyle='--')
-        ax.set_xlabel('Ligand concentration / M')
-        ax.set_ylabel('F$_\mathrm{norm,bl}$ / Counts' )
-        ax = axs[2,0]
+        # ax = axs[1,1]
+        # self.plot_colored(ax, self.concs, fnorm_bl, self.concs)
+        # label = "$K_D$=%.0E$\pm%.0f$" % (fit_fnorm_bl_opt[0], fit_fnorm_bl_err[0] / fit_fnorm_bl_opt[0]  * 100) +'%' 
+
+        # ax.semilogx(self.concs, fit_fnorm_bl, '--', zorder=-20, label=label)
+        # ax.legend()
+        # #ax.axvline(fit_fnorm_bl_opt[0], linestyle='--')
+        # ax.set_xlabel('Ligand concentration / M')
+        # ax.set_ylabel('F$_\mathrm{norm,bl}$ / Counts' )
+        ax = axs[2]
         ax.set_title('Initial fluorescence vs. ligand conc.')
-        ax.semilogx(self.concs, f_init, 'o')
-        ax.semilogx(self.concs, fit_f_init, '--', zorder=-20)
-        ax.axvline(fit_f_init_opt[0], linestyle='--')
+        self.plot_colored(ax, self.concs, f_init, self.concs)
+        label = "$K_D$=%.0EM$\pm%.0f$" % (fit_f_init_opt[0], fit_f_init_err[0] / fit_f_init_opt[0]  * 100) +'%' 
+        ax.semilogx(self.concs, fit_f_init, '--', zorder=-20, label=label)
+        ax.legend()
+        #ax.axvline(fit_f_init_opt[0], linestyle='--')
         ax.set_xlabel('Ligand concentration / M')
         ax.set_ylabel('F$_\mathrm{init}$ / Counts')
-        # Plot bleach rate
-        ax = axs[2,1]
-        ax.set_title('Bleaching rate vs. ligand conc.')
-        ax.semilogx(self.concs, -p_params[0], 'o')
-        ax.semilogx(self.concs, fit_f_bleach, '--', zorder=-20)
-        ax.axvline(fit_f_bleach_opt[0], linestyle='--')
-        ax.set_xlabel('Ligand concentration / M')
-        ax.set_ylabel('Bleach rate / Counts/s')
+        # # Plot bleach rate
+        # ax = axs[1,1]
+        # ax.set_title('Bleaching rate vs. ligand conc.')
+        # self.plot_colored(ax, self.concs, -p_params[0], self.concs)
+        # label = "$K_D$=%.0E$\pm%.0f$" % (fit_f_bleach_opt[0], fit_f_bleach_err[0] / fit_f_bleach_opt[0]  * 100) +'%' 
+        # ax.semilogx(self.concs, fit_f_bleach, '--', zorder=-20, label=label)
+        # ax.legend()
+        # #ax.axvline(fit_f_bleach_opt[0], linestyle='--')
+        # ax.set_xlabel('Ligand concentration / M')
+        # ax.set_ylabel('Bleach rate / Counts/s')
         # Plot regions
-        for ax in axs[:2,0]:
-            ax.axvspan(self.hot-1, self.hot, facecolor='red', alpha=.5)
-        axs[0,0].axvspan(self.cold-1, self.cold, facecolor='blue', alpha=.5)
+        ax = axs[0]
+        ax.axvspan(self.hot-1, self.hot, facecolor='red', alpha=.5)
+        ax.set_xlim([np.nanmin(self.times), np.nanmax(self.times)])
+        ax.axvspan(self.cold-1, self.cold, facecolor='blue', alpha=.5)
         # Change xlim
-        for ax in axs[:2,0]:
-            ax.set_xlim([np.nanmin(self.times), np.nanmax(self.times)])
-        for ax in axs[:,1]:
+        for ax in axs[1:]:
             ax.set_xlim([np.floor(np.log10(self.concs[0])), np.ceil(np.log10(self.concs[-1]))])
-        axs[1,1].set_xlim([np.floor(np.log10(self.concs[0])), np.ceil(np.log10(self.concs[-1]))])
+            ax.set_xlim([np.floor(np.log10(self.concs[0])), np.ceil(np.log10(self.concs[-1]))])
         fig.tight_layout()
         fig.show()
+        # Write results to dictionary
+        self.analysis = {'f_init': f_init}
+        # Save plot
+        fig.savefig(self.fn.replace('.xlsx', '_mst_and_init_F.pdf'))
+        print("Figure saves as %s" % self.fn.replace('.xlsx', '_mst_and_init_F.pdf'))
+        fig.savefig(self.fn.replace('.xlsx', '_mst_and_init_F.png'))
+        print("Figure saves as %s" % self.fn.replace('.xlsx', '_mst_and_init_F.png'))
         return None
 
     def fit_kd(self,concs, y, fix_pconc=False):
@@ -1850,6 +1885,46 @@ class MST_data():
         self.fit_lower = fit_lower
         #self.plot()
         return opt, cov
+
+    def plot_colored(self, ax, xs, ys, concs, outliers=[], lw=1, alpha=1, alpha_out=.2, linestyle='-'):
+        '''
+        Helper script to plot color coded (vs. conc) curves
+        '''
+        # Create color map
+        cmap = plt.cm.jet(np.linspace(0, 1, len(concs)))
+        # This is to use it both for decays (multi-rows) and fnorms (one value)
+        ys = np.array(ys).T
+        # Plot curves or points
+        for i in range(len(concs)):
+            if i in self.outliers:
+                # Check if is number or array
+                if isinstance(ys[i], np.ndarray):
+                    ax.plot(xs, ys[i], alpha=alpha_out, lw=lw, color=cmap[i], linestyle=linestyle)
+                else:
+                    ax.semilogx(xs[i], ys[i], 'o', alpha=alpha_out, lw=lw, color=cmap[i])
+                    # if hasattr(self, 'fnorm'):
+                #     axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha_out, lw=lw, color=cmap[i])
+            else:
+                # Check if is number or array
+                if isinstance(ys[i], np.ndarray):
+                    ax.plot(xs, ys[i],  alpha=alpha, lw=lw, color=cmap[i], linestyle=linestyle)
+                else:
+                    ax.semilogx(xs[i], ys[i], 'o', alpha=alpha, lw=lw, color=cmap[i])
+
+                # if hasattr(self, 'fnorm'):
+                #     axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color=cmap[i])
+        return None
+
+
+    def add_colorbar(self, ax, concs):
+        # setup the colorbar
+        normalize = mcolors.LogNorm(vmin=np.min(concs), vmax=np.max(concs)) # Or Normalize 
+        scalarmappaple = cm.ScalarMappable(norm=normalize, cmap=plt.cm.jet) 
+        scalarmappaple.set_array(concs)
+        cbar = plt.colorbar(scalarmappaple, ax=ax)
+        cbar.set_label('Lig. conc. / M', rotation=270) 
+        cbar.ax.get_yaxis().labelpad = 15
+        return None
     
     def plot(self, smooth=False, smooth_window=51):
         if hasattr(self, 'fnorm'):
@@ -1876,12 +1951,13 @@ class MST_data():
         lw =1
 
         # Set up color map
-        uconcs = np.unique(self.concs)
+        # uconcs = np.unique(self.concs)
         #cmap = plt.set_cmap(plt.jet())
         # Get smallest conc that is not zero (zero cannot be shown in log scale)
         minconc = np.min(self.concs[self.concs>0])
         # Define color map
-        cmap = iter(plt.cm.jet(np.linspace(0,1, len(np.unique(self.concs))+0)))
+        # cmap = iter(plt.cm.jet(np.linspace(0,1, len(np.unique(self.concs))+0)))
+        cmap = plt.cm.jet(np.linspace(0,1, len(self.concs)))
         # setup the colorbar
         normalize = mcolors.LogNorm(vmin=np.min(self.concs), vmax=np.max(self.concs)) # Or Normalize 
         scalarmappaple = cm.ScalarMappable(norm=normalize, cmap=plt.cm.jet) 
@@ -1916,32 +1992,44 @@ class MST_data():
                     if hasattr(self, 'fnorm'):
                         axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color='k')
                 continue
-            if prev_conc != self.concs[i]:
-                if i in self.outliers:
-                    temp, = ax.plot(self.times, data_temp[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha_out, lw=lw, color=cmap.__next__())
-                    if hasattr(self, 'fnorm'):
-                        axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha_out, lw=lw, color=temp.get_color())
-                else:
-                    temp, = ax.plot(self.times, data_temp[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color=cmap.__next__())
-                    if hasattr(self, 'fnorm'):
-                        axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color=temp.get_color())
-                lh.append(temp)
+            if i in self.outliers:
+                temp, = ax.plot(self.times, data_temp[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha_out, lw=lw, color=cmap[i])
+                if hasattr(self, 'fnorm'):
+                    axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha_out, lw=lw, color=cmap[i])
             else:
-                if i in self.outliers:
-                    temp, = ax.plot(self.times, data_temp[:, i], alpha=alpha_out, lw=lw, color=temp.get_color())
-                    if hasattr(self, 'fnorm'):
-                        axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha_out, lw=lw, color=temp.get_color())
-                else:
-                    temp, = ax.plot(self.times, data_temp[:, i], alpha=alpha, lw=lw, color=temp.get_color())
-                    if hasattr(self, 'fnorm'):
-                        axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color=temp.get_color())
-                print("Conc. double")
+                ax.plot(self.times, data_temp[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color=cmap[i])
+                if hasattr(self, 'fnorm'):
+                    axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color=cmap[i])
+                         
+            # if prev_conc != self.concs[i]:
+            #     if i in self.outliers:
+            #         temp, = ax.plot(self.times, data_temp[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha_out, lw=lw, color=cmap.__next__())
+            #         if hasattr(self, 'fnorm'):
+            #             axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha_out, lw=lw, color=temp.get_color())
+            #     else:
+            #         temp, = ax.plot(self.times, data_temp[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color=cmap.__next__())
+            #         if hasattr(self, 'fnorm'):
+            #             axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color=temp.get_color())
+            #     lh.append(temp)
+            # else:
+            #     if i in self.outliers:
+            #         temp, = ax.plot(self.times, data_temp[:, i], alpha=alpha_out, lw=lw, color=temp.get_color())
+            #         if hasattr(self, 'fnorm'):
+            #             axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha_out, lw=lw, color=temp.get_color())
+            #     else:
+            #         temp, = ax.plot(self.times, data_temp[:, i], alpha=alpha, lw=lw, color=temp.get_color())
+            #         if hasattr(self, 'fnorm'):
+            #             axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color=temp.get_color())
+            #     print("Conc. double")
             
         # Add legend
         #ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), handles=lh, title="Ligand conc.")
         # ax.set_xlim([dat.iloc[4,1], dat.iloc[-1,1]])
         ax.set_xlabel('Time / s')
-        ax.set_ylabel('Norm. fluorescence')
+        if np.max(self.decays) < 1.01:
+            ax.set_ylabel('Norm. fluorescence')
+        else:
+            ax.set_ylabel('Fluorescence / Counts')
         ax.set_xlim((np.nanmin(self.times), np.nanmax(self.times)))
 
         # Add hot/cold areas
