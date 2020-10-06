@@ -1620,12 +1620,18 @@ class MST_data():
         lig_pos_ver = np.argwhere(dat.iloc[:,0] == 'Ligand Concentration:')[0,0] 
         lig_pos_hor = np.argwhere(dat.iloc[lig_pos_ver,:] == 'Ligand Concentration:').squeeze() +1
         self.concs = np.array(dat.iloc[lig_pos_ver, lig_pos_hor]).astype(np.float32) * 1E-6
+        # Get ligand name
+        lig_pos_ver = np.argwhere(dat.iloc[:,0] == 'Ligand:')[0,0] 
+        lig_pos_hor = np.argwhere(dat.iloc[lig_pos_ver,:] == 'Ligand:').squeeze() +1
+        self.lig_names = np.array(dat.iloc[lig_pos_ver, lig_pos_hor]).astype(str)       
         # Get times
         self.times = np.array(dat.iloc[dat_pos:,0]).astype('float32')
         # Get decays
         self.decays = np.array(dat.iloc[dat_pos:,lig_pos_hor]).astype('float32')
         # Outliers
         self.outliers = []
+        # Sort
+        self.sort()
         return None
 
     def sort(self):
@@ -1636,6 +1642,26 @@ class MST_data():
         sort_ind = np.argsort(self.concs)
         self.concs = self.concs[sort_ind]
         self.decays = self.decays[:, sort_ind]
+        self.lig_names = self.lig_names[sort_ind]
+        return None
+
+    def subset(self, inds=[], ligname=''):
+        '''
+        Select subset and delete other entries
+        Either select by indices or ligand name
+        '''
+        if len(ligname) > 0:
+            print('Selection based on ligand name')
+            inds = np.argwhere(self.lig_names == ligname).squeeze()
+            print('Found %i entries with name: %s' % (len(inds), ligname))
+        if len(inds) == 0:
+            print('Ligand name does not match or empty indices list! Aborting')
+            return None
+        self.concs = self.concs[inds]
+        self.decays = self.decays[:, inds]
+        self.lig_names = self.lig_names[inds]
+        # Sort afterwards
+        self.sort()
         return None
         
     def normalize(self):
@@ -1669,7 +1695,7 @@ class MST_data():
         self.F_hot = F_hot
         return fnorm
 
-    def plot_init_fluo(self, fix_pconc=False, hot=20, cold=0):
+    def plot_init_fluo(self, fix_pconc=False, hot=20, cold=0, bleach_correct=False):
         '''
         This extracts the initial fluorescence and plots it vs conc
         '''
@@ -1690,10 +1716,22 @@ class MST_data():
         # Move back
         self.decays = decays_init
         # Fit f_init
-        fit_f_init, fit_f_init_opt, fit_f_init_err = self.fit_kd(self.concs, f_init, fix_pconc=fix_pconc) 
-        fit_f_bleach, fit_f_bleach_opt, fit_f_bleach_err = self.fit_kd(self.concs, -p_params[0], fix_pconc=fix_pconc)
-        fit_fnorm, fit_fnorm_opt, fit_fnorm_err = self.fit_kd(self.concs, fnorm , fix_pconc=fix_pconc)
-        fit_fnorm_bl, fit_fnorm_bl_opt, fit_fnorm_bl_err = self.fit_kd(self.concs, fnorm_bl , fix_pconc=fix_pconc)
+        fit_f_init, fit_f_init_opt, fit_f_init_err = self.fit_kd(self.concs, f_init, fix_pconc=fix_pconc)
+        try:
+            fit_f_bleach, fit_f_bleach_opt, fit_f_bleach_err = self.fit_kd(self.concs, -p_params[0], fix_pconc=fix_pconc)
+        except:
+            print("Could not fit bleach")
+            fit_f_bleach = [] 
+        try:
+            fit_fnorm, fit_fnorm_opt, fit_fnorm_err = self.fit_kd(self.concs, fnorm , fix_pconc=fix_pconc)
+        except:
+            print("Could not fit fnorm")
+            fit_fnorm = []
+        try:
+            fit_fnorm_bl, fit_fnorm_bl_opt, fit_fnorm_bl_err = self.fit_kd(self.concs, fnorm_bl , fix_pconc=fix_pconc)
+        except:
+            print("Could not fit fnorm_bl")
+            fit_fnorm_bl = []
         
         # Do fit for f_bleach
         # Create plot
@@ -1710,8 +1748,8 @@ class MST_data():
         self.plot_colored(ax, self.times, self.decays, self.concs)
         self.add_colorbar(ax, self.concs)
         #ax.plot(self.times, self.decays)
-        #ax.plot(self.times, f_bl, '--', lw=.5)
-        #self.plot_colored(ax, self.times, f_bl, self.concs, linestyle='--', lw=.5)
+        if bleach_correct:
+            self.plot_colored(ax, self.times, f_bl, self.concs, linestyle='--', lw=.5)
         ax.set_ylabel('Fluorescence / Counts')
         ax.set_xlabel('Time / s')
         # ax = axs[1,0]
@@ -1721,23 +1759,24 @@ class MST_data():
         # ax.set_ylabel('Fluorescence / Counts')
         # ax.set_xlabel('Time / s')
         ax = axs[1]
-        ax.set_title('MST analysis')
-        self.plot_colored(ax, self.concs, fnorm, self.concs)
-        label = "$K_D$=%.0EM$\pm%.0f$" % (fit_fnorm_opt[0], fit_fnorm_err[0] / fit_fnorm_opt[0]  * 100) +'%' 
-        ax.semilogx(self.concs, fit_fnorm, '--', zorder=-20, label=label)
-        ax.legend()
-        #ax.axvline(fit_fnorm_opt[0], linestyle='--')
         ax.set_xlabel('Ligand concentration / M')
-        ax.set_ylabel('F$_\mathrm{norm}$ / ' + u'\u2030')
-        # ax = axs[1,1]
-        # self.plot_colored(ax, self.concs, fnorm_bl, self.concs)
-        # label = "$K_D$=%.0E$\pm%.0f$" % (fit_fnorm_bl_opt[0], fit_fnorm_bl_err[0] / fit_fnorm_bl_opt[0]  * 100) +'%' 
-
-        # ax.semilogx(self.concs, fit_fnorm_bl, '--', zorder=-20, label=label)
-        # ax.legend()
-        # #ax.axvline(fit_fnorm_bl_opt[0], linestyle='--')
-        # ax.set_xlabel('Ligand concentration / M')
-        # ax.set_ylabel('F$_\mathrm{norm,bl}$ / Counts' )
+        if bleach_correct:
+            ax.set_title('Bleach-corrected MST analysis')
+            self.plot_colored(ax, self.concs, fnorm_bl, self.concs)
+            label = "$K_D$=%.0E$\pm%.0f$" % (fit_fnorm_bl_opt[0], fit_fnorm_bl_err[0] / fit_fnorm_bl_opt[0]  * 100) +'%' 
+            ax.semilogx(self.concs, fit_fnorm_bl, '--', zorder=-20, label=label)
+            ax.legend()
+            ax.set_ylabel('F$_\mathrm{norm,bl}$ / Counts' )
+        else:
+            ax.set_title('MST analysis')
+            self.plot_colored(ax, self.concs, fnorm, self.concs)
+            if (len(fit_fnorm) > 0 ):
+                if fit_fnorm_err[0] / fit_fnorm_opt[0] < 1:
+                    print("Fit error for fnorm larger than 100%. Will not plot it")
+                    label = "$K_D$=%.0EM$\pm%.0f$" % (fit_fnorm_opt[0], fit_fnorm_err[0] / fit_fnorm_opt[0]  * 100) +'%' 
+                    ax.semilogx(self.concs, fit_fnorm, '--', zorder=-20, label=label)
+                    ax.legend()
+                ax.set_ylabel('F$_\mathrm{norm}$ / ' + u'\u2030')
         ax = axs[2]
         ax.set_title('Initial fluorescence vs. ligand conc.')
         self.plot_colored(ax, self.concs, f_init, self.concs)
