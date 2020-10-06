@@ -1716,7 +1716,11 @@ class MST_data():
         # Move back
         self.decays = decays_init
         # Fit f_init
-        fit_f_init, fit_f_init_opt, fit_f_init_err = self.fit_kd(self.concs, f_init, fix_pconc=fix_pconc)
+        try:
+            fit_f_init, fit_f_init_opt, fit_f_init_err = self.fit_kd(self.concs, f_init, fix_pconc=fix_pconc)
+        except:
+            print("Could not fit initial fluorescence data")
+            fit_f_init = []
         try:
             fit_f_bleach, fit_f_bleach_opt, fit_f_bleach_err = self.fit_kd(self.concs, -p_params[0], fix_pconc=fix_pconc)
         except:
@@ -1780,10 +1784,13 @@ class MST_data():
         ax = axs[2]
         ax.set_title('Initial fluorescence vs. ligand conc.')
         self.plot_colored(ax, self.concs, f_init, self.concs)
-        label = "$K_D$=%.0EM$\pm%.0f$" % (fit_f_init_opt[0], fit_f_init_err[0] / fit_f_init_opt[0]  * 100) +'%' 
-        ax.semilogx(self.concs, fit_f_init, '--', zorder=-20, label=label)
-        ax.legend()
-        #ax.axvline(fit_f_init_opt[0], linestyle='--')
+        print(fit_f_init)
+        if (len(fit_f_init) > 0 ):
+            if fit_f_init_err[0] / fit_f_init_opt[0] < 1:
+                print("Fit error for f_init larger than 100%. Will not plot it")  
+                label = "$K_D=$%.0E$\mathrm{M}\pm$%.0f" % (fit_f_init_opt[0], fit_f_init_err[0] / fit_f_init_opt[0]  * 100) +'%' 
+                ax.semilogx(self.concs, fit_f_init, '--', zorder=-20, label=label)
+                ax.legend()
         ax.set_xlabel('Ligand concentration / M')
         ax.set_ylabel('F$_\mathrm{init}$ / Counts')
         # # Plot bleach rate
