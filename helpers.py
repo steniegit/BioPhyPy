@@ -1793,6 +1793,10 @@ class MST_data():
                 ax.legend()
         ax.set_xlabel('Ligand concentration / M')
         ax.set_ylabel('F$_\mathrm{init}$ / Counts')
+        # Plot tolerance area +- 20%
+        F_mean = np.mean(f_init)
+        ax.axhline(F_mean, linestyle='--', color='grey', zorder=-10)
+        ax.axhspan(.8*F_mean, 1.2*F_mean, facecolor='grey', alpha=.5, zorder=-20)
         # # Plot bleach rate
         # ax = axs[1,1]
         # ax.set_title('Bleaching rate vs. ligand conc.')
