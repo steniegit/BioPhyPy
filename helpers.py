@@ -26,6 +26,22 @@ from scipy.sparse.linalg import spsolve
 import matplotlib.colors as mcolors
 from matplotlib import cm
 
+# Move this to helpers later on
+def kd_unit(kd):
+    '''
+    Converts Kd to label with suitable unit
+    '''
+    # Adjust labels to mM, muM or nM
+    if 1E-9 < kd < 1E-6:
+        kd_label = "%.3g$\,\mathrm{nM}$" % (kd*1E9)
+    elif 1E-6 < kd < 1E-3:
+        kd_label = "%.3g$\,\mu$M" % (kd*1E6)
+    elif 1E-3 < kd < 1:
+        kd_label = "%.3g$\,\mathrm{mM}$" % (kd*1E3)
+    else:
+        kd_label = "%.1E$\,\mathrm{M}$" % kd
+    return kd_label
+
 def baseline_als(y, lam=1E15, p=0.001, niter=10):
     '''
     Baseline Correction with
@@ -1767,7 +1783,8 @@ class MST_data():
         if bleach_correct:
             ax.set_title('Bleach-corrected MST analysis')
             self.plot_colored(ax, self.concs, fnorm_bl, self.concs)
-            label = "$K_D$=%.0E$\pm%.0f$" % (fit_fnorm_bl_opt[0], fit_fnorm_bl_err[0] / fit_fnorm_bl_opt[0]  * 100) +'%' 
+            kd_label = kd_unit(fit_fnorm_bl_opt[0])
+            label = "$K_D=$%s\pm%.0f$" % (kd_label, fit_fnorm_bl_err[0] / fit_fnorm_bl_opt[0]  * 100) +'%' 
             ax.semilogx(self.concs, fit_fnorm_bl, '--', zorder=-20, label=label)
             ax.legend()
             ax.set_ylabel('F$_\mathrm{norm,bl}$ / Counts' )
@@ -1985,7 +2002,8 @@ class MST_data():
             ax = axs[1]
             if hasattr(self, 'fit_opt'):
                 # Upper and lower limits for model (based on KD error)
-                hp_fit, = ax.semilogx(self.concs_dense, self.fit, label='K$_\mathrm{D}=$%.1EM$\pm$%.0f%%' % (self.fit_opt[0], self.fit_err[0]/self.fit_opt[0]*100))
+                kd_label = kd_unit(self.fit_opt[0])
+                hp_fit, = ax.semilogx(self.concs_dense, self.fit, label='$K_D=$%s$\pm$%.0f%%' % (kd_label, self.fit_err[0]/self.fit_opt[0]*100))
                 ax.fill_between(self.concs_dense, self.fit_upper, self.fit_lower, facecolor=hp_fit.get_color(), alpha=.5, zorder=-20)
                 ax.legend()
             ax.set_xlabel('Ligand concentration / M')
@@ -2045,11 +2063,11 @@ class MST_data():
             if i in self.outliers:
                 temp, = ax.plot(self.times, data_temp[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha_out, lw=lw, color=cmap[i])
                 if hasattr(self, 'fnorm'):
-                    axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha_out, lw=lw, color=cmap[i])
+                    axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha_out, lw=lw, color=cmap[i], markeredgecolor='k')
             else:
                 ax.plot(self.times, data_temp[:, i], label="%.1f uM" % (self.concs[i]*1E6), alpha=alpha, lw=lw, color=cmap[i])
                 if hasattr(self, 'fnorm'):
-                    axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color=cmap[i])
+                    axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color=cmap[i], markeredgecolor='k')
                          
             # if prev_conc != self.concs[i]:
             #     if i in self.outliers:
