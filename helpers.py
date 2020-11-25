@@ -1647,7 +1647,7 @@ class MST_data():
         # Outliers
         self.outliers = []
         # Sort
-        self.sort()
+        # self.sort()
         return None
 
     def sort(self):
