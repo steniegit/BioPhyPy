@@ -1646,6 +1646,10 @@ class MST_data():
         self.decays = np.array(dat.iloc[dat_pos:,lig_pos_hor]).astype('float32')
         # Outliers
         self.outliers = []
+        # Remove nans in time
+        non_nans = ~np.isnan(self.times)
+        self.times = self.times[non_nans]
+        self.decays = self.decays[non_nans, :]
         # Sort
         # self.sort()
         return None
