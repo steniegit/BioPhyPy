@@ -1631,14 +1631,14 @@ class MST_data():
         dat = pd.read_excel(xls, 'RawData', index_col=None, header=None)
         
         # Find out where data starts
-        dat_pos = np.argwhere(dat.iloc[:,0] == 'Time [s]')[0,0] +1
+        dat_pos = np.argwhere(np.array(dat.iloc[:,0]) == 'Time [s]')[0,0] +1
         # Get concentrations and locations
-        lig_pos_ver = np.argwhere(dat.iloc[:,0] == 'Ligand Concentration:')[0,0] 
-        lig_pos_hor = np.argwhere(dat.iloc[lig_pos_ver,:] == 'Ligand Concentration:').squeeze() +1
+        lig_pos_ver = np.argwhere(np.array(dat.iloc[:,0]) == 'Ligand Concentration:')[0,0] 
+        lig_pos_hor = np.array(np.array(dat.iloc[lig_pos_ver,:]) == 'Ligand Concentration:').squeeze() +1
         self.concs = np.array(dat.iloc[lig_pos_ver, lig_pos_hor]).astype(np.float32) * 1E-6
         # Get ligand name
-        lig_pos_ver = np.argwhere(dat.iloc[:,0] == 'Ligand:')[0,0] 
-        lig_pos_hor = np.argwhere(dat.iloc[lig_pos_ver,:] == 'Ligand:').squeeze() +1
+        lig_pos_ver = np.argwhere(np.array(dat.iloc[:,0]) == 'Ligand:')[0,0] 
+        lig_pos_hor = np.argwhere(np.array(dat.iloc[lig_pos_ver,:]) == 'Ligand:').squeeze() +1
         self.lig_names = np.array(dat.iloc[lig_pos_ver, lig_pos_hor]).astype(str)       
         # Get times
         self.times = np.array(dat.iloc[dat_pos:,0]).astype('float32')
