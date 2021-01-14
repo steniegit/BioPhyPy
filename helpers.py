@@ -1113,6 +1113,31 @@ def plot_spec(ax, x, spec, which_int='raman_parpar', color='blue'):
     ax.plot(x, np.sum(spec, axis=1), color='blue')
     return None
 
+class OpusData():
+    def __init__(self, fn=''):
+        self.fn = fn
+        self.limits = []
+        return None
+    
+    def load(self):
+        # Load data
+        dbs = ofc.listContents(self.fn)
+        data = {}
+        for db in dbs:
+            data[str(db[0])] = ofc.getOpusData(self.fn, db)
+        #print(data.keys())
+
+        # Chose AB as spectrum
+        spec_full = np.vstack((data['AB'].x, data['AB'].y)).T
+        # Convert to mOD
+        spec_full[:,1] = spec_full[:,1]*1000
+
+        # If x values are decreasing, flip matrix
+        if spec_full[0,0] > spec_full[-1,0]:
+            spec_full = np.flipud(spec_full)
+        self.spec_full = spec_full
+        return None
+
 def process_bruker(fn, spec_lim=[2100, 2200], peak_lim=[2145, 2175], p_order=6, sg_window=13, sg_poly=2, guess=[2155, 0.2, 5, 2165, 1, 5], func_type='gauss', gauss_pos = 'deriv', fit_tol=0.001, norm=True, gauss_lim = [2155, 2172]):
     '''
     This is a function that reads in a opus file 
