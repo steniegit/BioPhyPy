@@ -994,7 +994,8 @@ def multi_lorentz(x, *params):
     y = np.zeros_like(x)
     for i in range(0, len(params), 3):
         ctr = params[i]
-        tau = params[i+1]
+        # Second parameter is amplitude to make it comparable to gauss
+        tau = 2/(np.pi * params[i+1])
         wid = params[i+2]
         y = y + tau * wid / (2*np.pi) / ((x-ctr)**2+(wid/2)**2)
     return y
@@ -1201,6 +1202,12 @@ class OpusData():
         self.deriv1 = np.array(ssi.savgol_filter(self.raw, self.sg_window, self.sg_poly, deriv=1)).transpose()
         self.deriv2 = np.array(ssi.savgol_filter(self.raw, self.sg_window, self.sg_poly, deriv=2)).transpose()
         print("Smoothed spectrum and derived 1st derivative")
+        # Get zero crossings of second derivative
+        self.pos_zero1 = np.where(np.diff(np.sign(self.deriv1)))[0]
+        self.x_zero1 = self.x[self.pos_zero1]
+        # Get zero crossings of second derivative
+        self.pos_zero2 = np.where(np.diff(np.sign(self.deriv2)))[0]
+        self.x_zero2 = self.x[self.pos_zero2]
         return None
         
     def bl_correction(self):
@@ -1277,7 +1284,7 @@ class OpusData():
             print("Fit currently only implemented for 1 and 2 components (fit_number)!")
             return None
         # Do the fit
-        popt, pcov = curve_fit(fit_func, self.x, spec, p0=p0, maxfev=10000, bounds=(lbounds, ubounds))
+        popt, pcov = curve_fit(fit_func, self.x, spec, p0=p0, maxfev=1000000, bounds=(lbounds, ubounds))
         self.popt, self.pcov = popt, pcov
         self.fit_sum = fit_func(self.x, *popt)
         # Calculate R2
@@ -1286,6 +1293,8 @@ class OpusData():
         if fit_number == 2:
             self.fit_1 = fit_func(self.x, *popt[:3])
             self.fit_2 = fit_func(self.x, *popt[3:])
+        else:
+            self.fit_1 = self.fit_sum
         return None
 
     def plot(self, plot_raw=True, plot_deriv=True, plot_fit=True):
@@ -1309,10 +1318,20 @@ class OpusData():
                 plot_raw = False
                 continue
             if plot_deriv:
-                ax.plot(self.x, self.deriv2, label='2nd derivative')
+                ax.plot(self.x, self.deriv2, label='1st derivative')
                 # ax.legend()
+                ax.set_ylabel('1st derivative')
                 ax.set_ylabel('2nd derivative')
-                ax.axhline(0, ls='--', color='grey') 
+                ax.axhline(0, ls='--', color='grey')
+                # Plot zero crossings
+                for i, cross in enumerate(self.x_zero2):
+                    ax.axvline(cross, ls=':', color='gray')
+                    # Label zero crossings
+                    if i % 2 == 0:
+                        ha = 'right'
+                    else:
+                        ha = 'left'
+                    ax.text(cross, 1.1* ax.get_ylim()[1], "%.0f" % cross, ha=ha)
                 plot_deriv = False
                 continue
             if plot_fit:
@@ -1322,12 +1341,20 @@ class OpusData():
                 elif self.fit_type=='lorentz':
                     label = 'Lorentzian fit (R$^2$=%.4f)' % self.r2 
                 # Plot data
-                ax.plot(self.x, self.bl_corr, label='BL corrected')
+                ax.plot(self.x, self.bl_corr, label='Exp. spectrum')
                 hp, = ax.plot(self.x, self.fit_sum, '--', label=label)
-                # Plot individual components if more than 1 
+                # Plot individual components if more than 1
+                ax.plot(self.x, self.fit_1, ':', color=hp.get_color())
+                ax.axvline(self.popt[0], ls=':', color=hp.get_color())
                 if len(self.popt) > 3:
-                    ax.plot(self.x, self.fit_1, ':', color=hp.get_color())
+                    ha = 'right'
+                else:
+                    ha = 'center'
+                ax.text(self.popt[0], 1.1* ax.get_ylim()[1], "%.0f(%.0f)" % (self.popt[0], self.popt[2]), ha=ha)
+                if len(self.popt) > 3:
                     ax.plot(self.x, self.fit_2, ':', color=hp.get_color())
+                    ax.axvline(self.popt[3], ls=':', color=hp.get_color())
+                    ax.text(self.popt[0], 1.1* ax.get_ylim()[1], "%.0f(%.0f)" % (self.popt[3], self.popt[5]), ha='left')
                 ax.legend()
                 ax.set_ylabel('Absorbance / mOD')
                 plot_fit = False
