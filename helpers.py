@@ -982,7 +982,7 @@ def multi_gauss(x, *params):
         ctr = params[i]
         amp = params[i+1]
         wid = params[i+2]
-        y = y + amp * np.exp( -((x - ctr)/wid)**2)
+        y = y + amp * np.exp( -((x - ctr)/(wid/2))**2)
     return y
 
 def multi_lorentz(x, *params):
