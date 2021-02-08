@@ -505,7 +505,7 @@ class DLS_Data():
         self.acf_average = np.array(acf_average)
         self.pos_average = np.array(pos_average)
 
-def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True, ptitle='', leg='', save_all=False, loading=np.NaN, ref_fn='', flip=False):
+def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True, ptitle='', leg='', save_all=False, loading=np.NaN, ref_sensor=None, ref_subtract=None, flip=False):
     '''
     Wrapper script to determine KD from 
     Octet data
@@ -518,27 +518,47 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     order: 'a' based on fit factor, or 'sort' based on value
     norm: Normalize values (0-1)
     save_all: if this is True, then also the rise/decay and the fitted rise/decay are saved ! This takes space!!!
+    ref_sensor: Reference sensor
+    ref_subtract: 'none', 'both', 'rise', 'decay'
     flip: Flip data, i.e. decaying signal when binding; happens for instance for lipid vesicle binding
     Returns fitvalues_rise, fitvalues_decay and fit
     If plot=True it returns fig, axs, fitvalues_rise, fitvalues_decay and fit
     '''
     # Load data
-    try:
-        rise, rise_time = extract_octetSeg(folder, seg=seg_rise, sensor=sensor, norm=norm)
-        decay, decay_time = extract_octetSeg(folder, seg=seg_decay, sensor=sensor, norm=norm)
-        if len(ref_fn) > 0:
-            # Load reference
-            ref_rise, ref_rise_time = extract_octetSeg(folder, seg=seg_rise, sensor=sensor, norm=norm)
-            ref_rise, ref_rise_time = extract_octetSeg(folder, seg=seg_rise, sensor=sensor, norm=norm)
-            rise = rise - ref_rise
-            decay = decay - ref_decay
-        if flip:
-            rise = - rise +1
-            decay = - decay +1
-            print("Flipped data!")
-    except:
-        print("Could not load data! Exiting")
-        return None, None
+    #try:
+    rise, rise_time = extract_octetSeg(folder, seg=seg_rise, sensor=sensor, norm=norm)
+    decay, decay_time = extract_octetSeg(folder, seg=seg_decay, sensor=sensor, norm=norm)
+    #except:
+    #    print("Could not load data! Exiting")
+    #    return None, None
+    # Load ref data for subtraction
+    if ref_subtract in ['rise', 'decay', 'both']:
+        # Quick and dirty solution, don't normalize here
+        # Do it later
+        # Hi Osva:)
+        rise, rise_time = extract_octetSeg(folder, seg=seg_rise, sensor=sensor, norm=False)
+        decay, decay_time = extract_octetSeg(folder, seg=seg_decay, sensor=sensor, norm=False)
+        # Load reference
+        ref_rise, ref_rise_time = extract_octetSeg(folder, seg=seg_rise, sensor=ref_sensor, norm=False)
+        ref_decay, ref_rise_decay = extract_octetSeg(folder, seg=seg_decay, sensor=ref_sensor, norm=False)
+        if ref_subtract == 'both':
+            rise -= ref_rise
+            decay-= ref_decay
+        elif ref_subtract == 'rise':
+            rise -=  ref_rise
+        elif ref_subtract == 'decay':
+            decay -= ref_decay
+        # Now normalize
+        rise -= np.min(rise)
+        rise /= np.max(rise)
+        decay -= np.min(decay)
+        decay /= np.max(decay)
+
+        
+    if flip:
+        rise = - rise +1
+        decay = - decay +1
+        print("Flipped data!")
 
     # Prepare fitting function and starting parameters
     if func=='biexp':
