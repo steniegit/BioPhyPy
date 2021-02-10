@@ -505,7 +505,7 @@ class DLS_Data():
         self.acf_average = np.array(acf_average)
         self.pos_average = np.array(pos_average)
 
-def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True, ptitle='', leg='', save_all=False, loading=np.NaN, ref_sensor=None, ref_subtract=None, flip=False):
+def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True, ptitle='', leg='', save_all=False, loading=np.NaN, ref_sensor=None, ref_subtract=None, flip=False, denorm=False, output_txt=False):
     '''
     Wrapper script to determine KD from 
     Octet data
@@ -517,6 +517,8 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     conc: analyte concentration
     order: 'a' based on fit factor, or 'sort' based on value
     norm: Normalize values (0-1)
+    denorm: Undo normalization for output
+    output_txt: Write text files with data and fitting
     save_all: if this is True, then also the rise/decay and the fitted rise/decay are saved ! This takes space!!!
     ref_sensor: Reference sensor
     ref_subtract: 'none', 'both', 'rise', 'decay'
@@ -548,12 +550,16 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
             rise -=  ref_rise
         elif ref_subtract == 'decay':
             decay -= ref_decay
+    if norm:
+        print("Will normalize data")
+        # Save values for later
+        max_rise = np.max(rise)
+        min_rise = np.min(rise)
+        max_decay = np.max(decay)
+        min_decay = np.min(decay)
         # Now normalize
-        rise -= np.min(rise)
-        rise /= np.max(rise)
-        decay -= np.min(decay)
-        decay /= np.max(decay)
-
+        rise = (rise - min_rise) / (max_rise - min_rise)
+        decay = (decay - min_decay) / (max_decay - min_decay)
         
     if flip:
         rise = - rise +1
@@ -568,7 +574,7 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     elif func=='exp':
         func_rise = exp_rise
         func_decay = exp_decay
-        guess = (0.5, 1) #0, 1)
+        guess = (0.5, np.max(rise)) #0, 1)
     else:
         print("Error: Unknown function!!")
         return None
@@ -591,6 +597,14 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
     fitted_decay = func_decay(decay_time, *fitvalues_decay)
     r2_decay = r_sq(decay, fitted_decay)
 
+    # If normalized and unnormalized True
+    if norm and denorm:
+        print("Data was normalized and will be de-normalized for plotting")
+        rise = rise * (max_rise - min_rise) + min_rise
+        decay = decay * (max_decay - min_decay) + min_decay
+        fitted_rise = fitted_rise * (max_rise - min_rise) + min_rise
+        fitted_decay = fitted_decay * (max_decay - min_decay) + min_decay
+
     # Plot data
     if plot:
         fig, axs = plt.subplots(2)
@@ -612,6 +626,22 @@ def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True
 
     # Determine KD
     fit = output_fit(fitvalues_rise, fitvalues_decay, r2_rise=r2_rise, r2_decay=r2_decay, conc=conc, order=order)
+    # Write text
+    if output_txt:
+        # Rise 
+        np.savetxt("sensor%i_riseseg%i.txt" % (sensor, seg_rise), rise)
+        print("Wrote rise to sensor%i_riseseg%i.txt" % (sensor, seg_rise))
+        np.savetxt("sensor%i_riseseg%i_fit%s.txt" % (sensor, seg_rise, func), fitted_rise)
+        print("Wrote rise fit to sensor%i_riseseg%i_fit%s.txt" % (sensor, seg_rise, func))
+        np.savetxt("times_riseseg%i.txt" % (seg_rise), rise_time)
+        print("Wrote times to times_riseseg%i.txt" % (seg_rise))
+        np.savetxt("sensor%i_decayseg%i.txt" % (sensor, seg_decay), decay)
+        print("Wrote decay to sensor%i_decayseg%i.txt" % (sensor, seg_decay))
+        np.savetxt("sensor%i_decayseg%i_fit%s.txt" % (sensor, seg_decay, func), fitted_decay)
+        print("Wrote decay fit to sensor%i_decayseg%i_fit%s.txt" % (sensor, seg_decay, func))
+        np.savetxt("times_decayseg%i.txt" % (seg_decay), decay_time)
+        print("Wrote times to times_decayseg%i.txt" % (seg_decay))
+
     # Extend fit dictionary
     if save_all:
         fit['decay_time']   = decay_time
