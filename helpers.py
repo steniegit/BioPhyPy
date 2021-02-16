@@ -1941,7 +1941,7 @@ class MST_data():
         dat_pos = np.argwhere(np.array(dat.iloc[:,0]) == 'Time [s]')[0,0] +1
         # Get concentrations and locations
         lig_pos_ver = np.argwhere(np.array(dat.iloc[:,0]) == 'Ligand Concentration:')[0,0] 
-        lig_pos_hor = np.array(np.array(dat.iloc[lig_pos_ver,:]) == 'Ligand Concentration:').squeeze() +1
+        lig_pos_hor = np.argwhere(np.array(dat.iloc[lig_pos_ver,:]) == 'Ligand Concentration:').squeeze() +1
         self.concs = np.array(dat.iloc[lig_pos_ver, lig_pos_hor]).astype(np.float32) * 1E-6
         # Get ligand name
         lig_pos_ver = np.argwhere(np.array(dat.iloc[:,0]) == 'Ligand:')[0,0] 
