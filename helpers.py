@@ -1958,7 +1958,7 @@ class MST_data():
         self.times = self.times[non_nans]
         self.decays = self.decays[non_nans, :]
         # Sort
-        # self.sort()
+        self.sort()
         return None
 
     def sort(self):
@@ -2267,6 +2267,7 @@ class MST_data():
     def plot_colored(self, ax, xs, ys, concs, outliers=[], lw=1, alpha=1, alpha_out=.2, linestyle='-'):
         '''
         Helper script to plot color coded (vs. conc) curves
+        Make sure that concs are sorted in ascending order!
         '''
         # Create color map
         cmap = plt.cm.jet(np.linspace(0, 1, len(concs)))
@@ -2295,6 +2296,11 @@ class MST_data():
 
 
     def add_colorbar(self, ax, concs):
+        '''
+        Helper function to add colorbar
+        Use in combination with plot_colored
+        Make sure that concs are sorted in ascending order
+        '''
         # setup the colorbar
         normalize = mcolors.LogNorm(vmin=np.min(concs), vmax=np.max(concs)) # Or Normalize 
         scalarmappaple = cm.ScalarMappable(norm=normalize, cmap=plt.cm.jet) 
