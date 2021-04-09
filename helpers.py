@@ -2168,7 +2168,7 @@ class MST_data():
        # Chose fitting function
         if fix_pconc:
             func = single_site_kd(self.pconc)
-            print("Will fit with fixed protein concentration of %.1e." % self.pconc)
+            print("Will fit with fixed protein concentration of %.1E M." % self.pconc)
         else:
             func = single_site
             print("Will fit with variable protein concentration.")
@@ -2186,7 +2186,7 @@ class MST_data():
             p0 = (kd0, pconc0, nonbound0, bound0)
         opt, cov = curve_fit(func, concs, y, p0=p0, bounds=bounds) #, p0=(1E-6, np.min(self.fnorm), np.max(self.fnorm)))
         if fix_pconc:
-            print("Fitted protein conc: %.1EM" % (self.pconc, opt[1]))
+            print("Fitted protein conc: %.1EM" % (self.pconc)) #, opt[1]))
             #self.pconc = opt[1]
         # Print results
         err = np.sqrt(np.diag(cov))
