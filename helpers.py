@@ -2095,8 +2095,17 @@ class MST_data():
             ax.set_title('Bleach-corrected MST analysis')
             self.plot_colored(ax, self.concs, fnorm_bl, self.concs)
             kd_label = kd_unit(fit_fnorm_bl_opt[0])
-            label = "$K_D=$%s\pm%.0f$" % (kd_label, fit_fnorm_bl_err[0] / fit_fnorm_bl_opt[0]  * 100) +'%' 
-            ax.semilogx(self.concs, fit_fnorm_bl, '--', zorder=-20, label=label)
+            label = "$K_D=$%s$\pm%.0f$" % (kd_label, fit_fnorm_bl_err[0] / fit_fnorm_bl_opt[0]  * 100) +'%'
+            # Finer concs for plotting fit
+            concs_fine = np.linspace(np.min(self.concs), np.max(self.concs), 300)
+            if fix_pconc:
+                fit_fine = single_site_kd(self.pconc)(concs_fine, *fit_fnorm_bl_opt)
+            else:
+                print("Fitted pconc.: %.1E" % fit_fnorm_bl_opt[1])
+                print(fit_fnorm_bl_opt)
+                fit_fine = single_site(concs_fine, *fit_fnorm_bl_opt)
+            #ax.semilogx(self.concs, fit_fnorm_bl, '-', zorder=-20, label=label)
+            ax.semilogx(concs_fine, fit_fine, '-', zorder=-20, label=label)
             ax.legend()
             ax.set_ylabel('F$_\mathrm{norm,bl}$ / Counts' )
         else:
@@ -2106,7 +2115,7 @@ class MST_data():
                 if fit_fnorm_err[0] / fit_fnorm_opt[0] < 1:
                     print("Fit error for fnorm larger than 100%. Will not plot it")
                     label = "$K_D$=%.0EM$\pm%.0f$" % (fit_fnorm_opt[0], fit_fnorm_err[0] / fit_fnorm_opt[0]  * 100) +'%' 
-                    ax.semilogx(self.concs, fit_fnorm, '--', zorder=-20, label=label)
+                    ax.semilogx(self.concs, fit_fnorm, '-', zorder=-20, label=label)
                     ax.legend()
                 ax.set_ylabel('F$_\mathrm{norm}$ / ' + u'\u2030')
         ax = axs[2]
@@ -2117,7 +2126,7 @@ class MST_data():
             if fit_f_init_err[0] / fit_f_init_opt[0] < 1:
                 print("Fit error for f_init larger than 100%. Will not plot it")  
                 label = "$K_D=$%.0E$\mathrm{M}\pm$%.0f" % (fit_f_init_opt[0], fit_f_init_err[0] / fit_f_init_opt[0]  * 100) +'%' 
-                ax.semilogx(self.concs, fit_f_init, '--', zorder=-20, label=label)
+                ax.semilogx(self.concs, fit_f_init, '-', zorder=-20, label=label)
                 ax.legend()
         ax.set_xlabel('Ligand concentration / M')
         ax.set_ylabel('F$_\mathrm{init}$ / Counts')
@@ -2176,6 +2185,9 @@ class MST_data():
             bounds = ((0, 0, -np.inf, -np.inf), (np.inf, np.inf, np.inf, np.inf))
             p0 = (kd0, pconc0, nonbound0, bound0)
         opt, cov = curve_fit(func, concs, y, p0=p0, bounds=bounds) #, p0=(1E-6, np.min(self.fnorm), np.max(self.fnorm)))
+        if fix_pconc:
+            print("Fitted protein conc: %.1EM" % (self.pconc, opt[1]))
+            #self.pconc = opt[1]
         # Print results
         err = np.sqrt(np.diag(cov))
         fit = func(concs, *opt)
@@ -2280,7 +2292,7 @@ class MST_data():
                 if isinstance(ys[i], np.ndarray):
                     ax.plot(xs, ys[i], alpha=alpha_out, lw=lw, color=cmap[i], linestyle=linestyle)
                 else:
-                    ax.semilogx(xs[i], ys[i], 'o', alpha=alpha_out, lw=lw, color=cmap[i])
+                    ax.semilogx(xs[i], ys[i], 'o', alpha=alpha_out, lw=lw, color=cmap[i], markeredgecolor='k')
                     # if hasattr(self, 'fnorm'):
                 #     axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha_out, lw=lw, color=cmap[i])
             else:
@@ -2288,7 +2300,7 @@ class MST_data():
                 if isinstance(ys[i], np.ndarray):
                     ax.plot(xs, ys[i],  alpha=alpha, lw=lw, color=cmap[i], linestyle=linestyle)
                 else:
-                    ax.semilogx(xs[i], ys[i], 'o', alpha=alpha, lw=lw, color=cmap[i])
+                    ax.semilogx(xs[i], ys[i], 'o', alpha=alpha, lw=lw, color=cmap[i], markeredgecolor='k')
 
                 # if hasattr(self, 'fnorm'):
                 #     axs[1].semilogx(self.concs[i], self.fnorm[i], 'o', alpha=alpha, lw=lw, color=cmap[i])
