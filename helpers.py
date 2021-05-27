@@ -11,7 +11,7 @@ sys.path.insert(0,'/home/snieblin/work/libspec')
 sys.path.insert(0,'/home/snieblin/work/')
 # import libspec
 import scipy.signal as ssi
-import opusFC as ofc
+# import opusFC as ofc
 from scipy.optimize import curve_fit
 import ipdb
 import re
@@ -25,6 +25,7 @@ from scipy.sparse.linalg import spsolve
 # For color bars
 import matplotlib.colors as mcolors
 from matplotlib import cm
+import h5py
 
 # Move this to helpers later on
 def kd_unit(kd):
@@ -2503,3 +2504,96 @@ class CD_data():
         np.savetxt(self.fn.replace('.csv', '') + '.txt', dat, fmt='%20.10f', header=header)
         print("Text file saved as %s" % (self.fn.replace('.csv', '') + '.txt'))
     
+
+class Refeyn:
+    '''
+    Simple class to load refeyn eventsFitted.h5 files from mass photometer
+    '''
+    def __init__(self, fn):
+        self.fn = fn
+        # Load data
+        data = h5py.File(self.fn, 'r')
+        # Initialize variables
+        self.masses_kDa = data['masses_kDa']
+        return None
+    
+    def create_histo(self, window=[0,2000], nbins=1000):
+        '''
+        Creates histogram of masses
+        '''
+        self.hist_counts, self.hist_bins = np.histogram(self.masses_kDa, range=window, bins=nbins)
+        self.hist_mass = (self.hist_bins[1:] + self.hist_bins[:-1]) / 2.0
+        self.hist_window = window
+        self.hist_nbins = nbins
+        self.hist_window = window
+        return None
+    
+    def plot_histo(self):
+        '''
+        Plot histogram of data
+        '''
+        # Create fig
+        fig, ax = plt.subplots(1)
+        # Plot it
+        ax.hist(self.masses_kDa, range=self.hist_window, bins=self.hist_nbins, alpha=.5)
+        ax.set_xlabel('Mass / kDa')
+        ax.set_ylabel('Counts')
+        # Plot fit if there
+        if hasattr(self, 'fit'):
+            #ax.plot(self.fit[:,0], self.fit[:,1:-1], linestyle='--', color='C1')
+            ax.plot(self.fit[:,0], self.fit[:,-1], linestyle='-', color='C1', alpha=1)
+            for i in range(int(len(self.popt)/3)):
+                pos = self.popt[3*i]
+                pos_err = self.fit_error[3*i]
+                width = self.popt[3*i + 2 ]
+                height = self.popt[3*i + 1 ]
+                # ax.plot([self.fit[pos,-1], self.spec[pos,-1]], [self.spec[peak,1]+0.01*ylim[1], self.spec[peak,1]+0.05*ylim[1]], color='k')
+                ax.text(pos, height+0.05*np.max(self.hist_counts), "%.0f kDa\n$\sigma=%.0f\,$kDa" % (pos, width), ha='center', va='bottom')
+        # Set limits
+        ax.set_xlim([0, np.max(self.hist_mass)])
+        ax.set_ylim([0, np.max(self.hist_counts)*1.1])
+        fig.tight_layout()
+        return fig
+    
+    def fit_histo(self, guess_pos=[], tol=50):
+        '''
+        Fit gaussians to histogram
+        guess: list with guessed centers, defines the number of gaussians to be used, 
+               if empty, it will use the maximum of the histogram as guess
+        '''
+        # If no guess are taken, only fit one gaussian and use maximum in histogram as guess
+        if len(guess_pos) == 0:
+            #guess_pos = self.hist_mass[np.argmax(self.hist_counts)]
+            guess_amp = np.max(self.hist_counts)
+            fit_guess = (guess_pos, guess_amp, 20)
+            bounds = ((guess_pos-tol, 0, 10), (guess_pos+tol, np.inf, np.inf))
+        else:
+            # Get amplitude for each guess position
+            guess_amp = []
+            for pos in guess_pos:
+                ind = np.argmin(np.abs(self.hist_mass - pos))
+                guess_amp.append(self.hist_counts[ind])
+            fit_guess = np.column_stack((np.array(guess_pos), np.array(guess_amp), np.array([50]*len(guess_pos)))).flatten()
+            lower_bounds = np.column_stack((np.array(guess_pos) - tol , np.array([0]*len(guess_pos)), np.array([0]*len(guess_pos)))).flatten()
+            upper_bounds = np.column_stack((np.array(guess_pos) + tol , np.array([np.max(self.hist_counts)]*len(guess_pos)), np.array([1000]*len(guess_pos)))).flatten()
+            bounds = (tuple(lower_bounds), tuple(upper_bounds))
+        # Determine function
+        func = multi_gauss
+        # Do fit
+        self.popt, self.pcov = curve_fit(func, self.hist_mass, self.hist_counts, p0=fit_guess, bounds=bounds)
+        # Create fit and individual gaussians for plotting
+        # Finer grid
+        x = np.linspace(np.min(self.hist_mass), np.max(self.hist_mass), 1000)
+        single_gauss = []
+        for i in range(0, len(self.popt), 3):
+            ctr = self.popt[i]
+            amp = self.popt[i+1]
+            wid = self.popt[i+2]
+            single_gauss.append(func(x, ctr, amp, wid))
+        # Sum of all
+        fit_sum = func(x, *self.popt)
+        # Create one array for all
+        self.fit = np.column_stack((x, np.array(single_gauss).T, fit_sum))
+        # Errors
+        self.fit_error = np.sqrt(np.diag(self.pcov))
+        return None
