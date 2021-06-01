@@ -2522,7 +2522,7 @@ class Refeyn:
         Creates histogram of masses
         '''
         # Determine number of bins based on bin_width
-        nbins = window // bin_width
+        nbins = (window[1] - window[0]) // bin_width
         # Create histogram
         self.hist_counts, self.hist_bins = np.histogram(self.masses_kDa, range=window, bins=nbins)
         self.hist_mass = (self.hist_bins[1:] + self.hist_bins[:-1]) / 2.0
