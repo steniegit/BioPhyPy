@@ -2517,12 +2517,17 @@ class Refeyn:
         self.masses_kDa = data['masses_kDa']
         return None
     
-    def create_histo(self, window=[0,2000], nbins=1000):
+    def create_histo(self, window=[0,2000], bin_width=10):
         '''
         Creates histogram of masses
         '''
+        # Determine number of bins based on bin_width
+        nbins = window // bin_width
+        # Create histogram
         self.hist_counts, self.hist_bins = np.histogram(self.masses_kDa, range=window, bins=nbins)
         self.hist_mass = (self.hist_bins[1:] + self.hist_bins[:-1]) / 2.0
+        # Write parameters to instance
+        self.bin_width = bin_width
         self.hist_window = window
         self.hist_nbins = nbins
         self.hist_window = window
