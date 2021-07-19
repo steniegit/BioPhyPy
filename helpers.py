@@ -35,6 +35,8 @@ def kd_unit(kd):
     # Adjust labels to mM, muM or nM
     if 1E-9 < kd < 1E-6:
         kd_label = "%.3g$\,\mathrm{nM}$" % (kd*1E9)
+    elif kd < 1E-9:
+        kd_label = "%.2g$\,\mathrm{nM}$" % (kd*1E9)
     elif 1E-6 < kd < 1E-3:
         kd_label = "%.3g$\,\mu$M" % (kd*1E6)
     elif 1E-3 < kd < 1:
@@ -1943,7 +1945,7 @@ class MST_data():
         # Get concentrations and locations
         lig_pos_ver = np.argwhere(np.array(dat.iloc[:,0]) == 'Ligand Concentration:')[0,0] 
         lig_pos_hor = np.argwhere(np.array(dat.iloc[lig_pos_ver,:]) == 'Ligand Concentration:').squeeze() +1
-        self.concs = np.array(dat.iloc[lig_pos_ver, lig_pos_hor]).astype(np.float32) * 1E-6
+        self.concs = np.array(dat.iloc[lig_pos_ver, lig_pos_hor]).astype(np.float32) * 1E-9
         # Get ligand name
         lig_pos_ver = np.argwhere(np.array(dat.iloc[:,0]) == 'Ligand:')[0,0] 
         lig_pos_hor = np.argwhere(np.array(dat.iloc[lig_pos_ver,:]) == 'Ligand:').squeeze() +1
@@ -2096,7 +2098,7 @@ class MST_data():
             ax.set_title('Bleach-corrected MST analysis')
             self.plot_colored(ax, self.concs, fnorm_bl, self.concs)
             kd_label = kd_unit(fit_fnorm_bl_opt[0])
-            label = "$K_D=$%s$\pm%.0f$" % (kd_label, fit_fnorm_bl_err[0] / fit_fnorm_bl_opt[0]  * 100) +'%'
+            label = "$K_d=$%s$\pm%.0f$" % (kd_label, fit_fnorm_bl_err[0] / fit_fnorm_bl_opt[0]  * 100) +'%'
             # Finer concs for plotting fit
             concs_fine = np.linspace(np.min(self.concs), np.max(self.concs), 300)
             if fix_pconc:
@@ -2242,6 +2244,7 @@ class MST_data():
         opt, cov = curve_fit(func, concs_in, fnorm_in, p0=p0, bounds=bounds) #, p0=(1E-6, np.min(self.fnorm), np.max(self.fnorm)))
         # Print results
         err = np.sqrt(np.diag(cov))
+        print("Error for Kd: %.2e+-%.2e" % (opt[0], err[0]))
         if fix_pconc:
             print("Error for nonbound: %.2f+-%.2f%%" % (opt[1], 100*err[1]/opt[1]))
             print("Error for bound: %.2f+-%.2f%%" % (opt[2], 100*err[2]/opt[2]))
@@ -2323,7 +2326,7 @@ class MST_data():
         cbar.ax.get_yaxis().labelpad = 15
         return None
     
-    def plot(self, smooth=False, smooth_window=51):
+    def plot(self, smooth=False, smooth_window=51, show_error=True):
         if hasattr(self, 'fnorm'):
             fig, axs = plt.subplots(1,2, figsize=(10,5))
             ## Plot outliers in gray
@@ -2333,8 +2336,13 @@ class MST_data():
             if hasattr(self, 'fit_opt'):
                 # Upper and lower limits for model (based on KD error)
                 kd_label = kd_unit(self.fit_opt[0])
-                hp_fit, = ax.semilogx(self.concs_dense, self.fit, label='$K_D=$%s$\pm$%.0f%%' % (kd_label, self.fit_err[0]/self.fit_opt[0]*100))
-                ax.fill_between(self.concs_dense, self.fit_upper, self.fit_lower, facecolor=hp_fit.get_color(), alpha=.5, zorder=-20)
+                if show_error:
+                    kd_label = '$K_d=$%s$\pm$%.0f%%' % (kd_label, self.fit_err[0]/self.fit_opt[0]*100)
+                else:
+                    kd_label = '$K_d=$%s' % kd_label
+                hp_fit, = ax.semilogx(self.concs_dense, self.fit, label=kd_label)
+                if show_error:
+                    ax.fill_between(self.concs_dense, self.fit_upper, self.fit_lower, facecolor=hp_fit.get_color(), alpha=.5, zorder=-20)
                 ax.legend()
             ax.set_xlabel('Ligand concentration / M')
             ax.set_ylabel('F$_\mathrm{norm}$ / ' + u'\u2030')
