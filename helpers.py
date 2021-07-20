@@ -2497,6 +2497,7 @@ class CD_data():
         Averages y values
         '''
         self.av_y = np.average(self.y, axis=1)
+        self.std_y = np.std(self.y, axis=1)
         return None
 
     def savetxt(self):
