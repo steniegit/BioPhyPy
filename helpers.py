@@ -2542,9 +2542,10 @@ class Refeyn:
         self.hist_window = window
         return None
     
-    def plot_histo(self):
+    def plot_histo(self, plot_weights=False):
         '''
         Plot histogram of data
+        plot_weights: plot weights used for gaussian fits
         '''
         # Create fig
         fig, ax = plt.subplots(1)
@@ -2563,24 +2564,29 @@ class Refeyn:
                 height = self.popt[3*i + 1 ]
                 # ax.plot([self.fit[pos,-1], self.spec[pos,-1]], [self.spec[peak,1]+0.01*ylim[1], self.spec[peak,1]+0.05*ylim[1]], color='k')
                 ax.text(pos, height+0.05*np.max(self.hist_counts), "%.0f kDa\n$\sigma=%.0f\,$kDa" % (pos, width), ha='center', va='bottom')
+            if plot_weights:
+                ax.plot(self.hist_mass, self.weights * np.max(self.hist_counts), color='k')
         # Set limits
         ax.set_xlim([0, np.max(self.hist_mass)])
         ax.set_ylim([0, np.max(self.hist_counts)*1.1])
         fig.tight_layout()
         return fig
     
-    def fit_histo(self, guess_pos=[], tol=50):
+    def fit_histo(self, guess_pos=[], tol=100, max_width=200, weighted=False, weighted_width=200):
         '''
         Fit gaussians to histogram
         guess: list with guessed centers, defines the number of gaussians to be used, 
                if empty, it will use the maximum of the histogram as guess
+        weighted: Use weights around start positions, this can be used if there is a broad background
+        max_width: Maximum FWHM for fitted gaussians
+        weighted_width: FWHM for weights
         '''
         # If no guess are taken, only fit one gaussian and use maximum in histogram as guess
         if len(guess_pos) == 0:
             #guess_pos = self.hist_mass[np.argmax(self.hist_counts)]
             guess_amp = np.max(self.hist_counts)
-            fit_guess = (guess_pos, guess_amp, 20)
-            bounds = ((guess_pos-tol, 0, 10), (guess_pos+tol, np.inf, np.inf))
+            fit_guess = (guess_pos, guess_amp, 50)
+            bounds = ((guess_pos-tol, 0, 0), (guess_pos+tol, np.max(self.hist_counts), max_width))
         else:
             # Get amplitude for each guess position
             guess_amp = []
@@ -2589,12 +2595,21 @@ class Refeyn:
                 guess_amp.append(self.hist_counts[ind])
             fit_guess = np.column_stack((np.array(guess_pos), np.array(guess_amp), np.array([50]*len(guess_pos)))).flatten()
             lower_bounds = np.column_stack((np.array(guess_pos) - tol , np.array([0]*len(guess_pos)), np.array([0]*len(guess_pos)))).flatten()
-            upper_bounds = np.column_stack((np.array(guess_pos) + tol , np.array([np.max(self.hist_counts)]*len(guess_pos)), np.array([1000]*len(guess_pos)))).flatten()
+            upper_bounds = np.column_stack((np.array(guess_pos) + tol , np.array([np.max(self.hist_counts)]*len(guess_pos)), np.array([max_width]*len(guess_pos)))).flatten()
             bounds = (tuple(lower_bounds), tuple(upper_bounds))
         # Determine function
         func = multi_gauss
+        # Set weights
+        if weighted:
+            print("Will do weighted fit")
+            sigma_params = np.column_stack((np.array(guess_pos), np.array([1]*len(guess_pos)), np.array([weighted_width]*len(guess_pos)))).flatten()
+            sigma = func(self.hist_mass, *sigma_params)
+            sigma = (np.max(sigma) - sigma) + np.finfo(float).eps
+            self.weights = sigma
+        else:
+            sigma = np.ones((len(self.hist_mass)))*np.finfo(float).eps
         # Do fit
-        self.popt, self.pcov = curve_fit(func, self.hist_mass, self.hist_counts, p0=fit_guess, bounds=bounds)
+        self.popt, self.pcov = curve_fit(func, self.hist_mass, self.hist_counts, p0=fit_guess, bounds=bounds, sigma=sigma, method='dogbox', maxfev=1E5)
         # Create fit and individual gaussians for plotting
         # Finer grid
         x = np.linspace(np.min(self.hist_mass), np.max(self.hist_mass), 1000)
