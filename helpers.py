@@ -1060,6 +1060,24 @@ def gauss(x,center,height,fwhm=10):
     return height*np.exp(-(x-center)**2/(2*(c**2))
 )
 
+def delta(x, pos_list, width_list):
+    '''
+    Inverse delta function for weighted fit
+    x values
+    pos_list: list of positions
+    width_list: list of widths
+    '''
+    # Define ones for all values
+    func = np.ones(len(x))
+    # Loop through positions and multiply with single delta functions
+    for i, pos in enumerate(pos_list):
+        width = width_list[i]/2
+        # Create temporary inverse delta function
+        temp = (x > (pos - width))  * (x < (pos + width))
+        # Multiply with existing
+        func *= np.invert(temp.astype('bool'))
+    return func.astype('float')
+
 def extract_int(fn, scalf=1):
     '''
     Extracts intensities from Turbomole
@@ -2523,7 +2541,11 @@ class Refeyn:
         # Load data
         data = h5py.File(self.fn, 'r')
         # Initialize variables
-        self.masses_kDa = data['masses_kDa']
+        self.masses_kDa = np.array(data['masses_kDa'])
+        # Get number of counts
+        self.n_counts = len(self.masses_kDa)
+        self.n_binding = np.sum(self.masses_kDa>0)
+        self.n_unbinding = np.sum(self.masses_kDa < 0)
         return None
     
     def create_histo(self, window=[0,2000], bin_width=10):
@@ -2542,10 +2564,11 @@ class Refeyn:
         self.hist_window = window
         return None
     
-    def plot_histo(self, plot_weights=False):
+    def plot_histo(self, plot_weights=False, xlim=[]):
         '''
         Plot histogram of data
         plot_weights: plot weights used for gaussian fits
+        xlim: list with lower and upper x limit for plot
         '''
         # Create fig
         fig, ax = plt.subplots(1)
@@ -2563,13 +2586,31 @@ class Refeyn:
                 width = self.popt[3*i + 2 ]
                 height = self.popt[3*i + 1 ]
                 # ax.plot([self.fit[pos,-1], self.spec[pos,-1]], [self.spec[peak,1]+0.01*ylim[1], self.spec[peak,1]+0.05*ylim[1]], color='k')
-                ax.text(pos, height+0.05*np.max(self.hist_counts), "%.0f kDa\n$\sigma=%.0f\,$kDa" % (pos, width), ha='center', va='bottom')
+                # Plot individual gaussians
+                ax.plot(self.fit[:,0], self.fit[:,i+1] , color='C1', alpha=1, linestyle='--')
+                # Determine area under curve
+                auc = np.trapz(self.fit[:,i+1], x=self.fit[:,0]) / np.diff(self.hist_mass)[0]
+                # Add label
+                ax.text(pos, height+0.05*np.max(self.hist_counts), "%.0f kDa\n$\sigma=%.0f\,$kDa\n%.0f$\,$counts \n(%.0f%%)" % (pos, width/2/np.sqrt(2*np.log(2)), auc, auc/self.n_binding*100), ha='center', va='bottom')
             if plot_weights:
                 ax.plot(self.hist_mass, self.weights * np.max(self.hist_counts), color='k')
+
         # Set limits
-        ax.set_xlim([0, np.max(self.hist_mass)])
-        ax.set_ylim([0, np.max(self.hist_counts)*1.1])
+        if len(xlim)==0:
+            ax.set_xlim([0, np.max(self.hist_mass)])
+        else:
+            ax.set_xlim(xlim)
+        if hasattr(self, 'fit'):
+            # Increase ylim to have space for labels
+            ax.set_ylim([0, np.max(self.hist_counts)*1.3])
+        else:
+            ax.set_ylim([0, np.max(self.hist_counts)*1.1])
         fig.tight_layout()
+        # Get axis dimension
+        x_border = ax.get_xlim()[1]
+        y_border = ax.get_ylim()[1]
+        # Print number of counts
+        ax.text(x_border*.99, y_border*.99, "Total counts: %i\nBinding: %.0f%%\nUnbinding: %.0f%%" % (self.n_counts, self.n_binding/self.n_counts*100, self.n_unbinding/self.n_counts*100), va='top', ha='right', size=16)
         return fig
     
     def fit_histo(self, guess_pos=[], tol=100, max_width=200, weighted=False, weighted_width=200):
@@ -2602,14 +2643,17 @@ class Refeyn:
         # Set weights
         if weighted:
             print("Will do weighted fit")
-            sigma_params = np.column_stack((np.array(guess_pos), np.array([1]*len(guess_pos)), np.array([weighted_width]*len(guess_pos)))).flatten()
-            sigma = func(self.hist_mass, *sigma_params)
-            sigma = (np.max(sigma) - sigma) + np.finfo(float).eps
-            self.weights = sigma
+            #sigma_params = np.column_stack((np.array(guess_pos), np.array([1]*len(guess_pos)), np.array([weighted_width]*len(guess_pos)))).flatten()
+            #sigma = func(self.hist_mass, *sigma_params)
+            #sigma = (np.max(sigma) - sigma) + np.finfo(float).eps
+            #self.weights = sigma
+            sigma = delta(self.hist_mass, guess_pos, np.array([max_width]*len(guess_pos))) * np.max(self.hist_counts) + np.finfo(float).eps
         else:
             sigma = np.ones((len(self.hist_mass)))*np.finfo(float).eps
+        # Write sigma to instance
+        self.weights = sigma
         # Do fit
-        self.popt, self.pcov = curve_fit(func, self.hist_mass, self.hist_counts, p0=fit_guess, bounds=bounds, sigma=sigma, method='dogbox', maxfev=1E5)
+        self.popt, self.pcov = curve_fit(func, self.hist_mass, self.hist_counts, p0=fit_guess, bounds=bounds, sigma=sigma)  #, method='dogbox', maxfev=1E5)
         # Create fit and individual gaussians for plotting
         # Finer grid
         x = np.linspace(np.min(self.hist_mass), np.max(self.hist_mass), 1000)
