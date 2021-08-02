@@ -2564,14 +2564,17 @@ class Refeyn:
         self.hist_window = window
         return None
     
-    def plot_histo(self, plot_weights=False, xlim=[]):
+    def plot_histo(self, plot_weights=False, xlim=[], ylim=[], ax=None):
         '''
         Plot histogram of data
         plot_weights: plot weights used for gaussian fits
         xlim: list with lower and upper x limit for plot
         '''
         # Create fig
-        fig, ax = plt.subplots(1)
+        if ax==None:
+            fig, ax = plt.subplots(1)
+        else:
+            fig = plt.gcf()
         # Plot it
         ax.hist(self.masses_kDa, range=self.hist_window, bins=self.hist_nbins, alpha=.5)
         ax.set_xlabel('Mass / kDa')
@@ -2602,7 +2605,7 @@ class Refeyn:
             ax.set_xlim(xlim)
         if hasattr(self, 'fit'):
             # Increase ylim to have space for labels
-            ax.set_ylim([0, np.max(self.hist_counts)*1.3])
+            ax.set_ylim([0, np.max(self.hist_counts)*1.35])
         else:
             ax.set_ylim([0, np.max(self.hist_counts)*1.1])
         fig.tight_layout()
