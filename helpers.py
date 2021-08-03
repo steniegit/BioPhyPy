@@ -2613,7 +2613,7 @@ class Refeyn:
         x_border = ax.get_xlim()[1]
         y_border = ax.get_ylim()[1]
         # Print number of counts
-        ax.text(x_border*.99, y_border*.99, "Total counts: %i\nBinding: %.0f%%\nUnbinding: %.0f%%" % (self.n_counts, self.n_binding/self.n_counts*100, self.n_unbinding/self.n_counts*100), va='top', ha='right', size=16)
+        ax.text(x_border*.99, y_border*.99, "Total counts: %i\nBinding: %.0f%%\nUnbinding: %.0f%%" % (self.n_counts, self.n_binding/self.n_counts*100, self.n_unbinding/self.n_counts*100), va='top', ha='right')
         return fig
     
     def fit_histo(self, guess_pos=[], tol=100, max_width=200, weighted=False, weighted_width=200):
