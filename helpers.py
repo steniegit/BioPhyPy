@@ -2628,9 +2628,11 @@ class Refeyn:
         # If no guess are taken, only fit one gaussian and use maximum in histogram as guess
         if len(guess_pos) == 0:
             #guess_pos = self.hist_mass[np.argmax(self.hist_counts)]
-            guess_amp = np.max(self.hist_counts)
-            fit_guess = (guess_pos, guess_amp, 50)
-            bounds = ((guess_pos-tol, 0, 0), (guess_pos+tol, np.max(self.hist_counts), max_width))
+            #guess_amp = np.max(self.hist_counts)
+            #fit_guess = (guess_pos, guess_amp, 50)
+            #bounds = ((guess_pos-tol, 0, 0), (guess_pos+tol, np.max(self.hist_counts), max_width))
+            print("No guess positions given (guess_pos)! Will not fit.")
+            return None
         else:
             # Get amplitude for each guess position
             guess_amp = []
