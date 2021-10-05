@@ -2540,8 +2540,8 @@ class Refeyn:
         self.fn = fn
         # Load data
         data = h5py.File(self.fn, 'r')
-        # Initialize variables
-        self.masses_kDa = np.array(data['masses_kDa'])
+        # Initialize variables, Squeeze necessary for older datasets
+        self.masses_kDa = np.array(data['masses_kDa']).squeeze()
         # Get number of counts
         self.n_counts = len(self.masses_kDa)
         self.n_binding = np.sum(self.masses_kDa>0)
