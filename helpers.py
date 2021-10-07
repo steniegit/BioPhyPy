@@ -2563,6 +2563,30 @@ class Refeyn:
         self.hist_nbins = nbins
         self.hist_window = window
         return None
+
+    def create_fit_table(self):
+        '''
+        Uses info in self.fit to generate a 
+        pandas DataFrame that summarizes fit results
+        '''
+        if hasattr(self, 'fit'):
+            # Create lists with fitting parameters
+            # These are later used to create a pandas DataFrame
+            list_pos, list_sigma, list_counts = [], [], []
+            # Loop over entries in optimized parameters
+            for i in range(int(len(self.popt)/3)):
+                list_pos.append(self.popt[3*i])
+                list_sigma.append(self.popt[3*i+2]/2/np.sqrt(2*np.log(2)))
+                list_counts.append(np.trapz(self.fit[:,i+1], x=self.fit[:,0]) / np.diff(self.hist_mass)[0])
+            # Create Pandas Dataframe
+            self.fit_table = pd.DataFrame(data={'Position / kDa': list_pos,
+                                                'Sigma / kDa': list_sigma,
+                                                'Counts' : list_counts,
+                                                'Counts / %': np.round(np.array(list_counts)/self.n_binding*100)}
+                                                )
+        else:
+            print('No fit results available')
+        return None
     
     def plot_histo(self, plot_weights=False, xlim=[], ylim=[], ax=None):
         '''
