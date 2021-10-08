@@ -2583,16 +2583,20 @@ class Refeyn:
                                                 'Sigma / kDa': list_sigma,
                                                 'Counts' : list_counts,
                                                 'Counts / %': np.round(np.array(list_counts)/self.n_binding*100)}
-                                                )
+                                          ) #.astype({'Position / kDa': int,
+                                            #       'Sigma / kDa': int,
+                                            #       'Counts' : int,
+                                            #       'Counts / %': int})
         else:
             print('No fit results available')
         return None
     
-    def plot_histo(self, plot_weights=False, xlim=[], ylim=[], ax=None):
+    def plot_histo(self, plot_weights=False, xlim=[], ylim=[], ax=None, show_labels=True):
         '''
         Plot histogram of data
         plot_weights: plot weights used for gaussian fits
         xlim: list with lower and upper x limit for plot
+        show_label: Shows gaussian paramters for each component 
         '''
         # Create fig
         if ax==None:
@@ -2618,7 +2622,8 @@ class Refeyn:
                 # Determine area under curve
                 auc = np.trapz(self.fit[:,i+1], x=self.fit[:,0]) / np.diff(self.hist_mass)[0]
                 # Add label
-                ax.text(pos, height+0.05*np.max(self.hist_counts), "%.0f kDa\n$\sigma=%.0f\,$kDa\n%.0f$\,$counts \n(%.0f%%)" % (pos, width/2/np.sqrt(2*np.log(2)), auc, auc/self.n_binding*100), ha='center', va='bottom')
+                if show_labels:
+                    ax.text(pos, height+0.05*np.max(self.hist_counts), "%.0f kDa\n$\sigma=%.0f\,$kDa\n%.0f$\,$counts \n(%.0f%%)" % (pos, width/2/np.sqrt(2*np.log(2)), auc, auc/self.n_binding*100), ha='center', va='bottom')
             if plot_weights:
                 ax.plot(self.hist_mass, self.weights * np.max(self.hist_counts), color='k')
 
@@ -2629,7 +2634,8 @@ class Refeyn:
             ax.set_xlim(xlim)
         if hasattr(self, 'fit'):
             # Increase ylim to have space for labels
-            ax.set_ylim([0, np.max(self.hist_counts)*1.35])
+            if show_labels:
+                ax.set_ylim([0, np.max(self.hist_counts)*1.35])
         else:
             ax.set_ylim([0, np.max(self.hist_counts)*1.1])
         fig.tight_layout()
