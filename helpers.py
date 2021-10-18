@@ -2536,16 +2536,23 @@ class Refeyn:
     '''
     Simple class to load refeyn eventsFitted.h5 files from mass photometer
     '''
-    def __init__(self, fn):
+    def __init__(self, fn=''):
         self.fn = fn
         # Load data
-        data = h5py.File(self.fn, 'r')
-        # Initialize variables, Squeeze necessary for older datasets
-        self.masses_kDa = np.array(data['masses_kDa']).squeeze()
-        # Get number of counts
-        self.n_counts = len(self.masses_kDa)
-        self.n_binding = np.sum(self.masses_kDa>0)
-        self.n_unbinding = np.sum(self.masses_kDa < 0)
+        if fn != '':
+            data = h5py.File(self.fn, 'r')
+            # Initialize variables, Squeeze necessary for older datasets
+            self.masses_kDa = np.array(data['masses_kDa']).squeeze()
+            # Get number of counts
+            self.n_counts = len(self.masses_kDa)
+            self.n_binding = np.sum(self.masses_kDa>0)
+            self.n_unbinding = np.sum(self.masses_kDa < 0)
+        else:
+            # Empty instance if no file name is given
+            self.masses_kDa = np.empty(1)
+            self.n_counts, self.n_binding, self.n_unbinding = 0, 0, 0
+        # Mock table
+        self.fit_table = pd.DataFrame()
         return None
     
     def create_histo(self, window=[0,2000], bin_width=10):
@@ -2704,4 +2711,6 @@ class Refeyn:
         self.fit = np.column_stack((x, np.array(single_gauss).T, fit_sum))
         # Errors
         self.fit_error = np.sqrt(np.diag(self.pcov))
+        # Create fit table
+        self.create_fit_table()
         return None
