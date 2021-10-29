@@ -26,6 +26,7 @@ from scipy.sparse.linalg import spsolve
 import matplotlib.colors as mcolors
 from matplotlib import cm
 import h5py
+import json
 
 # Move this to helpers later on
 def kd_unit(kd):
@@ -2551,10 +2552,54 @@ class Refeyn:
             # Empty instance if no file name is given
             self.masses_kDa = np.empty(1)
             self.n_counts, self.n_binding, self.n_unbinding = 0, 0, 0
+        # Set default processing/plotting parameters
+        self.proc_pars = {'window': [0, 2000], 'bin_width': 4}
+        self.plot_pars = {'xlim': [0, 2000], 'show_labels': True}
+        self.fit_pars  = {'max_width': 50,
+                          'weighted_width': 50,
+                          'tol': 50,
+                          'guess_pos': [66, 148, 480]}
         # Mock table
         self.fit_table = pd.DataFrame()
         return None
-    
+
+    def write_parameters(self, fn=''):
+        '''
+        Function to export processing/plotting parameters
+        fn: Filename for text file
+        '''
+        ### Use json
+        # Go through parameters and write to text file
+        with open(fn, 'w') as f:
+            f.write("### Processing and plotting parameters for %s\n" % self.fn)
+            # Processing parameters
+            self.write_dictionary(f, self.proc_pars, "Processing parameters")
+            self.write_dictionary(f, self.plot_pars, "Plot parameters")
+            self.write_dictionary(f, self.fit_pars, "Fitting parameters")
+        print("Wrote parameters to %s" % fn)
+        return None
+            
+    def write_dictionary(self, f, par_dict, header):
+        '''
+        Helper function to write dictionary to file f
+        f: open file
+        par_dict: dictionary of parameters
+        header: Header in file (name of parameters)
+        '''
+        # Write header
+        f.write('# ' + header + '\n\n')
+        for key in par_dict.keys():
+            f.write(key + '\t' + str(par_dict[key]) + '\n')
+        f.write('\n')
+        return None
+
+    def load_parameters(self, fn):
+        '''
+        Load processing/plotting parameters from file
+        
+        '''
+        return None
+        
     def create_histo(self, window=[0,2000], bin_width=10):
         '''
         Creates histogram of masses
