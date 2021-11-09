@@ -5,6 +5,8 @@ Mass photometry class
 import h5py
 import numpy as np
 import pandas as pd
+import scipy.signal as ssi
+from scipy.optimize import curve_fit
 from .helpers import *
 
 class MP_data:
@@ -74,17 +76,20 @@ class MP_data:
         '''
         return None
         
-    def create_histo(self, window=[0,2000], bin_width=10):
+    def create_histo(self, bin_width=4):
         '''
         Creates histogram of masses
         '''
+        # Get min and maximum value
+        window = [np.floor(np.min(self.masses_kDa)), np.ceil(np.max(self.masses_kDa))]
         # Determine number of bins based on bin_width
-        nbins = (window[1] - window[0]) // bin_width
+        nbins = int((window[1] - window[0]) // bin_width)
         # Create histogram
         self.hist_counts, self.hist_bins = np.histogram(self.masses_kDa, range=window, bins=nbins)
         self.hist_mass = (self.hist_bins[1:] + self.hist_bins[:-1]) / 2.0
         # Write parameters to instance
-        self.bin_width = bin_width
+        self.hist_centers = 0.5 * (self.hist_bins[:-1] + self.hist_bins[1:])
+        self.hist_binwidth = bin_width
         self.hist_window = window
         self.hist_nbins = nbins
         self.hist_window = window
@@ -117,7 +122,7 @@ class MP_data:
             print('No fit results available')
         return None
     
-    def plot_histo(self, plot_weights=False, xlim=[], ylim=[], ax=None, show_labels=True):
+    def plot_histo(self, plot_weights=False, xlim=[0, 2000], ylim=[], ax=None, show_labels=True):
         '''
         Plot histogram of data
         plot_weights: plot weights used for gaussian fits
@@ -130,7 +135,7 @@ class MP_data:
         else:
             fig = plt.gcf()
         # Plot it
-        ax.hist(self.masses_kDa, range=self.hist_window, bins=self.hist_nbins, alpha=.5)
+        ax.bar(self.hist_centers, self.hist_counts, alpha=.5, width=self.hist_binwidth)
         ax.set_xlabel('Mass / kDa')
         ax.set_ylabel('Counts')
         # Plot fit if there
@@ -139,6 +144,10 @@ class MP_data:
             ax.plot(self.fit[:,0], self.fit[:,-1], linestyle='-', color='C1', alpha=1)
             for i in range(int(len(self.popt)/3)):
                 pos = self.popt[3*i]
+                # Check if band is inside xlim, otherwise go to next loop
+                if (pos < xlim[0]) or (pos > xlim[1]):
+                    print("Yes: %i" % pos)
+                    continue
                 pos_err = self.fit_error[3*i]
                 width = self.popt[3*i + 2 ]
                 height = self.popt[3*i + 1 ]
@@ -187,18 +196,25 @@ class MP_data:
             #guess_amp = np.max(self.hist_counts)
             #fit_guess = (guess_pos, guess_amp, 50)
             #bounds = ((guess_pos-tol, 0, 0), (guess_pos+tol, np.max(self.hist_counts), max_width))
-            print("No guess positions given (guess_pos)! Will not fit.")
-            return None
+            print("No guess positions given (guess_pos)! Will try to find maxima.")
+            peaks, info = ssi.find_peaks(self.hist_counts, prominence=0.1*np.max(self.hist_counts))
+            guess_pos = self.hist_centers[peaks]
+            guess_amp = self.hist_counts[peaks]
+            print(guess_pos)
+            print(guess_amp)
+            if len(guess_pos) == 0:
+                print("No starting values found with peak picker")
+                return None
         else:
             # Get amplitude for each guess position
             guess_amp = []
             for pos in guess_pos:
                 ind = np.argmin(np.abs(self.hist_mass - pos))
                 guess_amp.append(self.hist_counts[ind])
-            fit_guess = np.column_stack((np.array(guess_pos), np.array(guess_amp), np.array([0]*len(guess_pos)))).flatten()
-            lower_bounds = np.column_stack((np.array(guess_pos) - tol , np.array([0]*len(guess_pos)), np.array([0]*len(guess_pos)))).flatten()
-            upper_bounds = np.column_stack((np.array(guess_pos) + tol , np.array([np.max(self.hist_counts)]*len(guess_pos)), np.array([max_width]*len(guess_pos)))).flatten()
-            bounds = (tuple(lower_bounds), tuple(upper_bounds))
+        fit_guess = np.column_stack((np.array(guess_pos), np.array(guess_amp), np.array([.5*max_width]*len(guess_pos)))).flatten()
+        lower_bounds = np.column_stack((np.array(guess_pos) - tol , np.array([0]*len(guess_pos)), np.array([0]*len(guess_pos)))).flatten()
+        upper_bounds = np.column_stack((np.array(guess_pos) + tol , np.array([np.max(self.hist_counts)]*len(guess_pos)), np.array([max_width]*len(guess_pos)))).flatten()
+        bounds = (tuple(lower_bounds), tuple(upper_bounds))
         # Determine function
         func = multi_gauss
         # Set weights
@@ -215,6 +231,7 @@ class MP_data:
         self.weights = sigma
         # Do fit
         self.popt, self.pcov = curve_fit(func, self.hist_mass, self.hist_counts, p0=fit_guess, bounds=bounds, sigma=sigma)  #, method='dogbox', maxfev=1E5)
+        print(self.popt)
         # Create fit and individual gaussians for plotting
         # Finer grid
         x = np.linspace(np.min(self.hist_mass), np.max(self.hist_mass), 1000)
