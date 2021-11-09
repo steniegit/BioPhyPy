@@ -2,6 +2,8 @@
 Class for circular dichroism data
 '''
 
+from .helpers import *
+import pandas as pd
 import numpy as np
 
 class CD_data():

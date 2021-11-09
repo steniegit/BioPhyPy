@@ -1,3 +1,12 @@
+'''
+IR data
+'''
+
+from .helpers import *
+import pandas as pd
+import numpy as np
+
+
 class OpusData():
     '''
     Class to load and process Opus IR data

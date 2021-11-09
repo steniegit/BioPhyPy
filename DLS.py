@@ -1,4 +1,13 @@
-class DLS_Data():
+'''
+DLS data
+'''
+
+from .helpers import *
+import pandas as pd
+import numpy as np
+
+
+class DLS_data():
     
     def __init__(self, folder='', verbose=False, labels={}, pfolder=''):
         '''
