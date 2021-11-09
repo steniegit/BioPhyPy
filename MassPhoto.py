@@ -146,7 +146,6 @@ class MP_data:
                 pos = self.popt[3*i]
                 # Check if band is inside xlim, otherwise go to next loop
                 if (pos < xlim[0]) or (pos > xlim[1]):
-                    print("Yes: %i" % pos)
                     continue
                 pos_err = self.fit_error[3*i]
                 width = self.popt[3*i + 2 ]
