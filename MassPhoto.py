@@ -9,6 +9,10 @@ import scipy.signal as ssi
 from scipy.optimize import curve_fit
 from .helpers import *
 
+# To do
+# Catch exception if masses kDa are not in file
+
+
 class MP_data:
     '''
     Simple class to load refeyn eventsFitted.h5 files from Refeyn mass photometer
@@ -20,10 +24,11 @@ class MP_data:
             data = h5py.File(self.fn, 'r')
             # Initialize variables, Squeeze necessary for older datasets
             self.masses_kDa = np.array(data['masses_kDa']).squeeze()
+            self.contrasts = np.array(data['contrasts']).squeeze()
             # Get number of counts
-            self.n_counts = len(self.masses_kDa)
-            self.n_binding = np.sum(self.masses_kDa>0)
-            self.n_unbinding = np.sum(self.masses_kDa < 0)
+            self.n_counts = len(self.contrasts)
+            self.n_binding = np.sum(self.contrasts<0)
+            self.n_unbinding = np.sum(self.contrasts>0)
         else:
             # Empty instance if no file name is given
             self.masses_kDa = np.empty(1)
@@ -76,23 +81,35 @@ class MP_data:
         '''
         return None
         
-    def create_histo(self, bin_width=4):
+    def create_histo(self, bin_width=4, bin_width_contrasts=0.004):
         '''
         Creates histogram of masses
         '''
-        # Get min and maximum value
-        window = [np.floor(np.min(self.masses_kDa)), np.ceil(np.max(self.masses_kDa))]
-        # Determine number of bins based on bin_width
-        nbins = int((window[1] - window[0]) // bin_width)
+        # If masses_kDa exists
+        if hasattr(self, 'masses_kDa'):           
+            # Get min and maximum value
+            window = [np.floor(np.min(self.masses_kDa)), np.ceil(np.max(self.masses_kDa))]
+            # Determine number of bins based on bin_width
+            nbins = int((window[1] - window[0]) // bin_width)
+            # Create histogram
+            self.hist_counts, self.hist_bins = np.histogram(self.masses_kDa, range=window, bins=nbins)
+            # Write parameters to instance
+            self.hist_centers = 0.5 * (self.hist_bins[:-1] + self.hist_bins[1:])
+            self.hist_binwidth = bin_width
+            self.hist_window = window
+            self.hist_nbins = nbins
+            self.hist_window = window
+        # For contrast values do the same
+        window_contrasts = [np.floor(np.min(self.contrasts)), np.ceil(np.max(self.contrasts))]
+        nbins_contrasts = int((window_contrasts[1] - window_contrasts[0]) // bin_width_contrasts)
         # Create histogram
-        self.hist_counts, self.hist_bins = np.histogram(self.masses_kDa, range=window, bins=nbins)
-        self.hist_mass = (self.hist_bins[1:] + self.hist_bins[:-1]) / 2.0
+        self.hist_counts_contrasts, self.hist_bins_contrasts = np.histogram(self.contrasts, range=window_contrasts, bins=nbins_contrasts)
         # Write parameters to instance
-        self.hist_centers = 0.5 * (self.hist_bins[:-1] + self.hist_bins[1:])
-        self.hist_binwidth = bin_width
-        self.hist_window = window
-        self.hist_nbins = nbins
-        self.hist_window = window
+        self.hist_centers_contrasts = 0.5 * (self.hist_bins_contrasts[:-1] + self.hist_bins_contrasts[1:])
+        self.hist_binwidth_contrasts = bin_width_contrasts
+        self.hist_window_contrasts = window_contrasts
+        self.hist_nbins_contrasts = nbins_contrasts
+        self.hist_window_contrasts = window_contrasts
         return None
 
     def create_fit_table(self):
@@ -108,7 +125,7 @@ class MP_data:
             for i in range(int(len(self.popt)/3)):
                 list_pos.append(self.popt[3*i])
                 list_sigma.append(self.popt[3*i+2]/2/np.sqrt(2*np.log(2)))
-                list_counts.append(np.trapz(self.fit[:,i+1], x=self.fit[:,0]) / np.diff(self.hist_mass)[0])
+                list_counts.append(np.trapz(self.fit[:,i+1], x=self.fit[:,0]) / np.diff(self.hist_centers)[0])
             # Create Pandas Dataframe
             self.fit_table = pd.DataFrame(data={'Position / kDa': list_pos,
                                                 'Sigma / kDa': list_sigma,
@@ -122,12 +139,13 @@ class MP_data:
             print('No fit results available')
         return None
     
-    def plot_histo(self, plot_weights=False, xlim=[0, 2000], ylim=[], ax=None, show_labels=True):
+    def plot_histo(self, plot_weights=False, xlim=[0, 2000], ylim=[], ax=None, show_labels=True, contrasts=False):
         '''
         Plot histogram of data
         plot_weights: plot weights used for gaussian fits
         xlim: list with lower and upper x limit for plot
         show_label: Shows gaussian paramters for each component 
+        contrast: Show contrast instead of masses in kDa
         '''
         # Create fig
         if ax==None:
@@ -135,7 +153,10 @@ class MP_data:
         else:
             fig = plt.gcf()
         # Plot it
-        ax.bar(self.hist_centers, self.hist_counts, alpha=.5, width=self.hist_binwidth)
+        if contrasts:
+            ax.bar(self.hist_centers_contrasts, self.hist_counts_contrasts, alpha=.5, width=self.hist_binwidth_contrasts)
+        else:
+            ax.bar(self.hist_centers, self.hist_counts, alpha=.5, width=self.hist_binwidth)
         ax.set_xlabel('Mass / kDa')
         ax.set_ylabel('Counts')
         # Plot fit if there
@@ -154,24 +175,27 @@ class MP_data:
                 # Plot individual gaussians
                 ax.plot(self.fit[:,0], self.fit[:,i+1] , color='C1', alpha=1, linestyle='--')
                 # Determine area under curve
-                auc = np.trapz(self.fit[:,i+1], x=self.fit[:,0]) / np.diff(self.hist_mass)[0]
+                auc = np.trapz(self.fit[:,i+1], x=self.fit[:,0]) / np.diff(self.hist_centers)[0]
                 # Add label
                 if show_labels:
                     ax.text(pos, height+0.05*np.max(self.hist_counts), "%.0f kDa\n$\sigma=%.0f\,$kDa\n%.0f$\,$counts \n(%.0f%%)" % (pos, width/2/np.sqrt(2*np.log(2)), auc, auc/self.n_binding*100), ha='center', va='bottom')
             if plot_weights:
-                ax.plot(self.hist_mass, self.weights * np.max(self.hist_counts), color='k')
+                ax.plot(self.hist_centers, self.weights * np.max(self.hist_counts), color='k')
 
         # Set limits
-        if len(xlim)==0:
-            ax.set_xlim([0, np.max(self.hist_mass)])
+        if contrasts:
+            pass
         else:
-            ax.set_xlim(xlim)
-        if hasattr(self, 'fit'):
-            # Increase ylim to have space for labels
-            if show_labels:
-                ax.set_ylim([0, np.max(self.hist_counts)*1.35])
-        else:
-            ax.set_ylim([0, np.max(self.hist_counts)*1.1])
+            if len(xlim)==0:
+                ax.set_xlim([0, np.max(self.hist_centers)])
+            else:
+                ax.set_xlim(xlim)
+            if hasattr(self, 'fit'):
+                # Increase ylim to have space for labels
+                if show_labels:
+                    ax.set_ylim([0, np.max(self.hist_counts)*1.35])
+            else:
+                ax.set_ylim([0, np.max(self.hist_counts)*1.1])
         fig.tight_layout()
         # Get axis dimension
         x_border = ax.get_xlim()[1]
@@ -191,7 +215,7 @@ class MP_data:
         '''
         # If no guess are taken, only fit one gaussian and use maximum in histogram as guess
         if len(guess_pos) == 0:
-            #guess_pos = self.hist_mass[np.argmax(self.hist_counts)]
+            #guess_pos = self.hist_centers[np.argmax(self.hist_counts)]
             #guess_amp = np.max(self.hist_counts)
             #fit_guess = (guess_pos, guess_amp, 50)
             #bounds = ((guess_pos-tol, 0, 0), (guess_pos+tol, np.max(self.hist_counts), max_width))
@@ -208,7 +232,7 @@ class MP_data:
             # Get amplitude for each guess position
             guess_amp = []
             for pos in guess_pos:
-                ind = np.argmin(np.abs(self.hist_mass - pos))
+                ind = np.argmin(np.abs(self.hist_centers - pos))
                 guess_amp.append(self.hist_counts[ind])
         fit_guess = np.column_stack((np.array(guess_pos), np.array(guess_amp), np.array([.5*max_width]*len(guess_pos)))).flatten()
         lower_bounds = np.column_stack((np.array(guess_pos) - tol , np.array([0]*len(guess_pos)), np.array([0]*len(guess_pos)))).flatten()
@@ -220,20 +244,20 @@ class MP_data:
         if weighted:
             print("Will do weighted fit")
             #sigma_params = np.column_stack((np.array(guess_pos), np.array([1]*len(guess_pos)), np.array([weighted_width]*len(guess_pos)))).flatten()
-            #sigma = func(self.hist_mass, *sigma_params)
+            #sigma = func(self.hist_centers, *sigma_params)
             #sigma = (np.max(sigma) - sigma) + np.finfo(float).eps
             #self.weights = sigma
-            sigma = delta(self.hist_mass, guess_pos, np.array([max_width]*len(guess_pos))) * np.max(self.hist_counts) + np.finfo(float).eps
+            sigma = delta(self.hist_centers, guess_pos, np.array([max_width]*len(guess_pos))) * np.max(self.hist_counts) + np.finfo(float).eps
         else:
-            sigma = np.ones((len(self.hist_mass)))*np.finfo(float).eps
+            sigma = np.ones((len(self.hist_centers)))*np.finfo(float).eps
         # Write sigma to instance
         self.weights = sigma
         # Do fit
-        self.popt, self.pcov = curve_fit(func, self.hist_mass, self.hist_counts, p0=fit_guess, bounds=bounds, sigma=sigma)  #, method='dogbox', maxfev=1E5)
+        self.popt, self.pcov = curve_fit(func, self.hist_centers, self.hist_counts, p0=fit_guess, bounds=bounds, sigma=sigma)  #, method='dogbox', maxfev=1E5)
         print(self.popt)
         # Create fit and individual gaussians for plotting
         # Finer grid
-        x = np.linspace(np.min(self.hist_mass), np.max(self.hist_mass), 1000)
+        x = np.linspace(np.min(self.hist_centers), np.max(self.hist_centers), 1000)
         single_gauss = []
         for i in range(0, len(self.popt), 3):
             ctr = self.popt[i]
