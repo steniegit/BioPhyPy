@@ -653,6 +653,32 @@ def multi_gauss(x, *params):
         y = y + amp * np.exp( -((x - ctr)/(wid/2))**2)
     return y
 
+def trunc_gauss(x, cutoff, *params):
+    '''
+    Truncated gaussian with cutoff
+    cutoff: needs to be positive number
+    Gaussian is truncated between -cutoff and +cutoff
+    '''
+    y = multi_gauss(x, *params)
+    # Cutoff needs to be positive
+    if cutoff < 0:
+        print("Negative cutoff chosen. Will take absolute of this!")
+        print("Select positi cutoff next time.")
+        cutoff = np.abs(cutoff)
+    # Select all elements between -cutoff and cutoff
+    inds = (x > -cutoff) * (x< cutoff)
+    y[inds] = 0
+    return y
+
+def trunc_gauss_fixed(cutoff):
+    ''' 
+    Helper function to fit truncated gaussian 
+    with a fixed cutoff
+    '''
+    def return_func(x, *params):
+        return trunc_gauss(x, cutoff, *params)
+    return return_func
+
 def multi_lorentz(x, *params):
     '''
     Multiple lorentzian function

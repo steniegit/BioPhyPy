@@ -82,7 +82,7 @@ class MP_data:
         '''
         return None
         
-    def create_histo(self, bin_width=4, bin_width_contrasts=0.004):
+    def create_histo(self, bin_width=4, bin_width_contrasts=0.002):
         '''
         Creates histogram of masses
         '''
@@ -103,7 +103,7 @@ class MP_data:
         # For contrast values do the same
         window_contrasts = [np.floor(np.min(self.contrasts)), np.ceil(np.max(self.contrasts))]
         nbins_contrasts = int((window_contrasts[1] - window_contrasts[0]) // bin_width_contrasts)
-        # Create histogram
+        # Create histogram for contrasts
         self.hist_counts_contrasts, self.hist_bins_contrasts = np.histogram(self.contrasts, range=window_contrasts, bins=nbins_contrasts)
         # Write parameters to instance
         self.hist_centers_contrasts = 0.5 * (self.hist_bins_contrasts[:-1] + self.hist_bins_contrasts[1:])
@@ -118,26 +118,42 @@ class MP_data:
         Uses info in self.fit to generate a 
         pandas DataFrame that summarizes fit results
         '''
-        if hasattr(self, 'fit'):
+        # Check if fit data is available
+        if not (hasattr(self, 'fit_contrasts') or hasattr(self, 'fit_masses')):
+            print('No fit results available')
+        # Load data from fits
+        if hasattr(self, 'fit_contrasts'):
+            fit, error, popt, pcov, weights = self.fit_contrasts.values()
+            hist_centers = self.hist_centers_contrasts
+            print(popt)
             # Create lists with fitting parameters
             # These are later used to create a pandas DataFrame
             list_pos, list_sigma, list_counts = [], [], []
             # Loop over entries in optimized parameters
-            for i in range(int(len(self.popt)/3)):
-                list_pos.append(self.popt[3*i])
-                list_sigma.append(self.popt[3*i+2]/2/np.sqrt(2*np.log(2)))
-                list_counts.append(np.trapz(self.fit[:,i+1], x=self.fit[:,0]) / np.diff(self.hist_centers)[0])
-            # Create Pandas Dataframe
-            self.fit_table = pd.DataFrame(data={'Position / kDa': list_pos,
-                                                'Sigma / kDa': list_sigma,
-                                                'Counts' : list_counts,
-                                                'Counts / %': np.round(np.array(list_counts)/self.n_binding*100)}
-                                          ) #.astype({'Position / kDa': int,
-                                            #       'Sigma / kDa': int,
-                                            #       'Counts' : int,
-                                            #       'Counts / %': int})
-        else:
-            print('No fit results available')
+            for i in range(int(len(popt)/3)):
+                list_pos.append(popt[3*i])
+                list_sigma.append(popt[3*i+2]/2/np.sqrt(2*np.log(2)))
+                list_counts.append(np.trapz(fit[:,i+1], x=fit[:,0]) / np.diff(hist_centers)[0])
+            self.fit_table_contrasts = pd.DataFrame(data={'Position': list_pos,
+                                                          'Sigma': list_sigma,
+                                                          'Counts' : list_counts,
+                                                          'Counts / %': np.round(np.array(list_counts)/self.n_binding*100)})
+            print("Created fit_table_contrasts")           
+        if hasattr(self, 'fit_masses'):
+            fit, error, popt, pcov, weights = self.fit_masses.values()
+            hist_centers = self.hist_centers
+            # Create lists with fitting parameters
+            # These are later used to create a pandas DataFrame
+            list_pos, list_sigma, list_counts = [], [], []
+            # Loop over entries in optimized parameters
+            for i in range(int(len(popt)/3)):
+                list_pos.append(popt[3*i])
+                list_sigma.append(popt[3*i+2]/2/np.sqrt(2*np.log(2)))
+                list_counts.append(np.trapz(fit[:,i+1], x=fit[:,0]) / np.diff(self.hist_centers)[0])
+            self.fit_table_masses = pd.DataFrame(data={'Position / kDa': list_pos,
+                                                       'Sigma / kDa': list_sigma,
+                                                       'Counts' : list_counts,
+                                                       'Counts / %': np.round(np.array(list_counts)/self.n_binding*100)})
         return None
     
     def plot_histo(self, plot_weights=False, xlim=[0, 2000], ylim=[], ax=None, show_labels=True, contrasts=False):
@@ -154,7 +170,8 @@ class MP_data:
             centers = self.hist_centers_contrasts
             binwidth = self.hist_binwidth_contrasts
             # Check if fit results are available
-            if self.fit_type == 'contrasts':
+            if hasattr(self, 'fit_contrasts'):
+                fit, error, popt, pcov, weights = self.fit_contrasts.values()
                 plot_fit = True
             else:
                 plot_fit = False
@@ -163,7 +180,8 @@ class MP_data:
             centers = self.hist_centers
             binwidth = self.hist_binwidth
             # Check if fit results are available
-            if self.fit_type == 'masses':
+            if hasattr(self, 'fit_masses'):
+                fit, error, popt, pcov, weights = self.fit_masses.values()
                 plot_fit = True
             else:
                 plot_fit = False
@@ -201,7 +219,7 @@ class MP_data:
         upper_ind = np.argmin(np.abs(centers-xlim[1]))
         inds = np.sort([lower_ind, upper_ind])
         # Determine ylim
-        if hasattr(self, 'fit'):
+        if (hasattr(self, 'fit_masses') or hasattr(self, 'fit_contrasts')):
             # Increase ylim to have space for labels
             if show_labels:
                 ax.set_ylim([0, np.max(counts[inds[0]:inds[1]])*1.35])
@@ -209,30 +227,30 @@ class MP_data:
                 ax.set_ylim([0, np.max(counts[inds[0]:inds[1]])*1.1])
         # And also fits (if available)
         if plot_fit:
-            #ax.plot(self.fit[:,0], self.fit[:,1:-1], linestyle='--', color='C1')
-            ax.plot(self.fit[:,0], self.fit[:,-1], linestyle='-', color='C1', alpha=1)
-            for i in range(int(len(self.popt)/3)):
-                pos = self.popt[3*i]
+            #ax.plot(fit[:,0], fit[:,1:-1], linestyle='--', color='C1')
+            ax.plot(fit[:,0], fit[:,-1], linestyle='-', color='C1', alpha=1)
+            for i in range(int(len(popt)/3)):
+                pos = popt[3*i]
                 # Check if band is inside xlim, otherwise go to next loop
                 if (pos < xlim[0]) or (pos > xlim[1]):
                     continue
-                pos_err = self.fit_error[3*i]
-                width = self.popt[3*i + 2 ]
-                height = self.popt[3*i + 1 ]
+                pos_err = fit[3*i]
+                width = popt[3*i + 2 ]
+                height = popt[3*i + 1 ]
                 # ax.plot([self.fit[pos,-1], self.spec[pos,-1]], [self.spec[peak,1]+0.01*ylim[1], self.spec[peak,1]+0.05*ylim[1]], color='k')
                 # Plot individual gaussians
-                ax.plot(self.fit[:,0], self.fit[:,i+1] , color='C1', alpha=1, linestyle='--')
+                ax.plot(fit[:,0], fit[:,i+1] , color='C1', alpha=1, linestyle='--')
                 # Determine area under curve
-                auc = np.trapz(self.fit[:,i+1], x=self.fit[:,0]) / np.diff(centers)[0]
+                auc = np.trapz(fit[:,i+1], x=fit[:,0]) / np.diff(centers)[0]
                 # Add label
                 if show_labels:
                     if contrasts:
-                        text_label = "%.1e \n$\sigma=%.1e\,$\n%.0f$\,$counts \n(%.0f%%)" % (pos, width/2/np.sqrt(2*np.log(2)), auc, auc/self.n_binding*100)
+                        text_label = "%.2E \n$\sigma=%.2E\,$\n%.0f$\,$counts \n(%.0f%%)" % (pos, width/2/np.sqrt(2*np.log(2)), auc, auc/self.n_binding*100)
                     else:
                         text_label = "%.0f kDa\n$\sigma=%.0f\,$kDa\n%.0f$\,$counts \n(%.0f%%)" % (pos, width/2/np.sqrt(2*np.log(2)), auc, auc/self.n_binding*100)
-                    ax.text(pos, height+0.05*np.max(self.hist_counts), text_label , ha='center', va='bottom')
+                    ax.text(pos, height+0.05*np.max(counts), text_label , ha='center', va='bottom')
             if plot_weights:
-                ax.plot(self.hist_centers, self.weights * np.max(self.hist_counts), color='k')
+                ax.plot(hist_centers, weights * np.max(counts), color='k')
         fig.tight_layout()
         # Get axis dimension
         x_border = ax.get_xlim()[1]
@@ -241,7 +259,7 @@ class MP_data:
         ax.text(x_border*.99, y_border*.99, "Total counts: %i\nBinding: %.0f%%\nUnbinding: %.0f%%" % (self.n_counts, self.n_binding/self.n_counts*100, self.n_unbinding/self.n_counts*100), va='top', ha='right')
         return fig, ax
     
-    def fit_histo(self, xlim=[], guess_pos=[], tol=100, tol_contrasts = 0.05, max_width=200, max_width_contrasts=0.005, weighted=False, weighted_width=200, weighted_width_contrasts=0.005, contrasts=False):
+    def fit_histo(self, xlim=[], guess_pos=[], tol=100, tol_contrasts = 0.05, max_width=200, max_width_contrasts=0.005, weighted=False, weighted_width=200, weighted_width_contrasts=0.005, contrasts=False, cutoff=0):
         '''
         Fit gaussians to histogram
         xlim: fit range
@@ -251,6 +269,7 @@ class MP_data:
         max_width: Maximum FWHM for fitted gaussians
         weighted_width: FWHM for weights
         contrasts: fit contrasts instead of masses
+        cutoff: lower cutoff for gaussian function. E.g. for 'RefeynOne' the lower cutoff is 40 kDa (for masses), for 'RefeynTwo' it is 30 kDa. If not sure select 0
         '''
         # Depending on contrasts select the right quantity
         if contrasts:
@@ -261,6 +280,7 @@ class MP_data:
             max_width = max_width_contrasts
             weighted_width = weighted_width_contrasts
         else:
+            # Load data for masses/kDa
             centers = self.hist_centers
             counts = self.hist_counts
         # Determine indices for xlim
@@ -297,7 +317,8 @@ class MP_data:
         upper_bounds = np.column_stack((np.array(guess_pos) + tol , np.array([np.max(counts)]*len(guess_pos)), np.array([max_width]*len(guess_pos)))).flatten()
         bounds = (tuple(lower_bounds), tuple(upper_bounds))
         # Determine function
-        func = multi_gauss
+        #func = multi_gauss
+        func = trunc_gauss_fixed(cutoff)
         # Set weights
         if weighted:
             print("Will do weighted fit")
@@ -305,30 +326,37 @@ class MP_data:
         else:
             sigma = np.ones((len(centers)))*np.finfo(float).eps
         # Write sigma to instance
-        self.weights = sigma
+        weights = sigma
         # Do fit
-        self.popt, self.pcov = curve_fit(func, centers, counts, p0=fit_guess, bounds=bounds, sigma=sigma)  #, method='dogbox', maxfev=1E5)
-        print(self.popt)
+        popt, pcov = curve_fit(func, centers, counts, p0=fit_guess, bounds=bounds, sigma=sigma)  #, method='dogbox', maxfev=1E5)
         # Create fit and individual gaussians for plotting
         # Finer grid
         x = np.linspace(np.min(centers), np.max(centers), 1000)
         single_gauss = []
-        for i in range(0, len(self.popt), 3):
-            ctr = self.popt[i]
-            amp = self.popt[i+1]
-            wid = self.popt[i+2]
+        for i in range(0, len(popt), 3):
+            ctr = popt[i]
+            amp = popt[i+1]
+            wid = popt[i+2]
             single_gauss.append(func(x, ctr, amp, wid))
         # Sum of all
-        fit_sum = func(x, *self.popt)
+        fit_sum = func(x, *popt)
         # Create one array for all
-        self.fit = np.column_stack((x, np.array(single_gauss).T, fit_sum))
+        fit = np.column_stack((x, np.array(single_gauss).T, fit_sum))
         # Errors
-        self.fit_error = np.sqrt(np.diag(self.pcov))
+        fit_error = np.sqrt(np.diag(pcov))
+        # Collect everything in a dictionary
+        fit_results = {'fit': np.column_stack((x, np.array(single_gauss).T, fit_sum)),
+                       'error': np.sqrt(np.diag(pcov)),
+                       'popt': popt,
+                       'pcov': pcov,
+                       'weights': weights}
         # Set fit type
         if contrasts:
-            self.fit_type = 'contrasts'
+            #self.fit_type = 'contrasts'
+            self.fit_contrasts = fit_results
         else:
-            self.fit_type = 'masses'
+            #self.fit_type = 'masses'
+            self.fit_masses = fit_results
         # Create fit table
         self.create_fit_table()
         return None
