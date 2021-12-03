@@ -113,6 +113,119 @@ class MP_data:
         self.hist_window_contrasts = window_contrasts
         return None
 
+    def calibrate(self, calib_stand=['NM1','NM2','NM3'], plot=False):
+        ''' 
+        Calibration based on contrasts histogram
+        You need to have run create_histo and fit_histo(contrasts=True) before
+        calib_standard: List of calibration standards
+                        Masses can be defined by strings: 'NM1', 'NM2', 'NM3', 'NM4'
+                        Or it can be defined by floats: e.g. 66, 146, 480
+        '''
+        # Dictionary with masses
+        mass_transl = {'NM1': 66, 'NM2': 146, 'NM3': 480, 'NM4': 1048}
+        # Convert calib_standard in list of floats
+        calib_floats = []
+        for stand in calib_stand:
+            if isinstance(stand, float):
+                calib_floats.append(stand)
+            else:
+                try:
+                    calib_floats.append(mass_transl[stand])
+                except:
+                    print("Could not find %s in list of calibrants" % stand)
+                    return None
+        # Convert to array
+        calib_stand = np.array(calib_floats)
+        # Sort in reversed order
+        calib_stand.sort()
+        # Check if fitted contrast histo is available
+        if not hasattr(self, 'fit_contrasts'):
+            print("No fitted contrasts available")
+            print("Please run fit_histo(contrasts=True) first")
+            return None
+        # Calibration points from fitting
+        calib_points = self.fit_table_contrasts['Position']
+        # Check if number of fitted gaussians fits to number of calibrants
+        if not (len(calib_points) == len(calib_stand)):
+            print("%i calibration standards given, but %i gaussians fitted to contrasts!" % (len(calib_stand), len(calib_points)))
+        # Now use these to calibrate system
+        # First order polynomial fit
+        params = np.polyfit(calib_points, calib_stand, 1)
+        # Calculate R2
+        r2 = r_sq(calib_stand, np.polyval(params, calib_points))
+        print("R^2=%.4f" % r2)
+        # Write info to instance
+        self.calib_params = params
+        self.calib_r2 = r2
+        # Plot calibration
+        if plot:
+            # Create figure
+            fig, ax = plt.subplots(1)
+            params_rev = np.polyfit(calib_stand, calib_points, 1)
+            # Plot points
+            ax.plot(calib_stand, calib_points, 'o')
+            # Plot calibration line
+            two_masses = np.array([.9*np.min(calib_stand), 1.1*np.max(calib_stand)])
+            ax.plot(two_masses, np.polyval(params_rev,two_masses), '--', zorder=-20)
+            # Lables
+            ax.set_xlabel('Molecular mass / kDa')
+            ax.set_ylabel('Contrast')
+            ax.set_title('Calibration (R^2=%.4f)' % r2)
+            fig.tight_layout()
+        # Calibrate masses
+        self.calibrate_masses() 
+        return None
+
+    def calibrate_masses(self):
+        '''
+        Function to calibrate masses from
+        contrasts after changing/setting the 
+        calibration parameters self.calib_para
+        '''
+        if hasattr(self, 'calib_params'):
+            # Convert contrasts to masses
+            self.masses_kDa = np.polyval(self.calib_params, self.contrasts)
+            self.create_histo()
+            print("Successfully calibrated masses/kDa and created mass histogram")
+        else:
+            print("No calibration parameters found!")
+            print("Run calibrate first")
+        return None
+
+    def calibration_export(self, fn='calib.txt'):
+        '''
+        Export calibration parameters and R2 to text file
+        fn: File name of exported file, will be copied to subfolder (location of h5 file)
+        '''
+        if hasattr(self, 'calib_params'):
+            fn_out = self.fn.replace('eventsFitted.h5','') + fn
+            # Concatenate arrays with parameters with R2
+            out_array = np.concatenate((self.calib_params, np.array(self.calib_r2).reshape(1)))
+            np.savetxt(fn_out, out_array)
+            print("Saved parameters and R2 in %s" % fn_out)
+        return None
+
+    def calibration_import(self, fn='calib.txt'):
+        '''
+        Reads calibration parameters and R2 from text file
+        fn: file name
+        '''
+        # Check if file exists
+        if not os.path.isfile(fn):
+            print("File %s not found!")
+            print("No data imported.")
+            return None
+        # Read file
+        in_array = np.genfromtxt(fn)
+        # Fill instance
+        # First two are calibration parameters
+        self.calib_params = in_array[:2]
+        # Last one is R2
+        self.calib_r2 = in_array[-1]
+        print("Calibration with R^2=%.4f successfully imported" % self.calib_r2)
+        self.calibrate_masses()
+        return None
+        
     def create_fit_table(self):
         '''
         Uses info in self.fit to generate a 
@@ -125,7 +238,6 @@ class MP_data:
         if hasattr(self, 'fit_contrasts'):
             fit, error, popt, pcov, weights = self.fit_contrasts.values()
             hist_centers = self.hist_centers_contrasts
-            print(popt)
             # Create lists with fitting parameters
             # These are later used to create a pandas DataFrame
             list_pos, list_sigma, list_counts = [], [], []
@@ -301,8 +413,6 @@ class MP_data:
             peaks, info = ssi.find_peaks(counts, prominence=0.1*np.max(counts))
             guess_pos = centers[peaks]
             guess_amp = counts[peaks]
-            print(guess_pos)
-            print(guess_amp)
             if len(guess_pos) == 0:
                 print("No starting values found with peak picker")
                 return None
