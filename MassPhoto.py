@@ -152,25 +152,34 @@ class MP_data:
         # First order polynomial fit
         params = np.polyfit(calib_points, calib_stand, 1)
         # Calculate R2
-        r2 = r_sq(calib_stand, np.polyval(params, calib_points))
+        calc = np.polyval(params, calib_points)
+        r2 = r_sq(calib_stand, calc)
         print("R^2=%.4f" % r2)
+        # Calculate max error
+        max_error = np.max((np.abs(calc-calib_stand))/calib_stand*100)
+        #print(max_error)
+        #print("Max error: %f.2" % max_error)
         # Write info to instance
         self.calib_params = params
         self.calib_r2 = r2
+        self.calib_maxerror = max_error
         # Plot calibration
         if plot:
             # Create figure
             fig, ax = plt.subplots(1)
             params_rev = np.polyfit(calib_stand, calib_points, 1)
             # Plot points
-            ax.plot(calib_stand, calib_points, 'o')
+            ax.plot(calib_stand, calib_points, 'o', label='Marker')
             # Plot calibration line
-            two_masses = np.array([.9*np.min(calib_stand), 1.1*np.max(calib_stand)])
-            ax.plot(two_masses, np.polyval(params_rev,two_masses), '--', zorder=-20)
+            two_masses = np.array([np.min(calib_stand)-50, np.max(calib_stand)+50])
+            cal_label = 'Gradient: %.1E kDa\nIntercept: %.1E\nMax error: %.1f%%' % (params_rev[0], params_rev[1], max_error)
+            
+            ax.plot(two_masses, np.polyval(params_rev,two_masses), '--', zorder=-20, label=cal_label)
             # Lables
             ax.set_xlabel('Molecular mass / kDa')
             ax.set_ylabel('Contrast')
-            ax.set_title('Calibration (R^2=%.4f)' % r2)
+            ax.set_title('Calibration (R$^2=%.4f$)' % r2)
+            ax.legend()
             fig.tight_layout()
         # Calibrate masses
         self.calibrate_masses() 
@@ -337,6 +346,9 @@ class MP_data:
                 ax.set_ylim([0, np.max(counts[inds[0]:inds[1]])*1.35])
             else:
                 ax.set_ylim([0, np.max(counts[inds[0]:inds[1]])*1.1])
+        # Override if ylim is set
+        if len(ylim)==2:
+            ax.set_ylim(ylim)
         # And also fits (if available)
         if plot_fit:
             #ax.plot(fit[:,0], fit[:,1:-1], linestyle='--', color='C1')
