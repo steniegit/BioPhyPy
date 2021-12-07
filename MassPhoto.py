@@ -82,10 +82,12 @@ class MP_data:
         '''
         return None
         
-    def create_histo(self, bin_width=4, bin_width_contrasts=0.002):
+    def create_histo(self, bin_width=4, bin_width_contrasts=0.0002, only_masses=False):
         '''
         Creates histogram of masses
         '''
+        # Write parameters to instance
+        self.hist_binwidth= bin_width
         # If masses_kDa exists
         if hasattr(self, 'masses_kDa'):           
             # Get min and maximum value
@@ -100,17 +102,20 @@ class MP_data:
             self.hist_window = window
             self.hist_nbins = nbins
             self.hist_window = window
-        # For contrast values do the same
-        window_contrasts = [np.floor(np.min(self.contrasts)), np.ceil(np.max(self.contrasts))]
-        nbins_contrasts = int((window_contrasts[1] - window_contrasts[0]) // bin_width_contrasts)
-        # Create histogram for contrasts
-        self.hist_counts_contrasts, self.hist_bins_contrasts = np.histogram(self.contrasts, range=window_contrasts, bins=nbins_contrasts)
-        # Write parameters to instance
-        self.hist_centers_contrasts = 0.5 * (self.hist_bins_contrasts[:-1] + self.hist_bins_contrasts[1:])
-        self.hist_binwidth_contrasts = bin_width_contrasts
-        self.hist_window_contrasts = window_contrasts
-        self.hist_nbins_contrasts = nbins_contrasts
-        self.hist_window_contrasts = window_contrasts
+            self.hist_binwidth_contrasts = bin_width_contrasts
+        # Do also for contrasts
+        if not only_masses:
+            # For contrast values do the same
+            window_contrasts = [np.floor(np.min(self.contrasts)), np.ceil(np.max(self.contrasts))]
+            nbins_contrasts = int((window_contrasts[1] - window_contrasts[0]) // bin_width_contrasts)
+            # Create histogram for contrasts
+            self.hist_counts_contrasts, self.hist_bins_contrasts = np.histogram(self.contrasts, range=window_contrasts, bins=nbins_contrasts)
+            # Write parameters to instance
+            self.hist_centers_contrasts = 0.5 * (self.hist_bins_contrasts[:-1] + self.hist_bins_contrasts[1:])
+            self.hist_window_contrasts = window_contrasts
+            self.hist_nbins_contrasts = nbins_contrasts
+            self.hist_window_contrasts = window_contrasts
+            self.hist_binwidth_contrasts = bin_width_contrasts
         return None
 
     def calibrate(self, calib_stand=['NM1','NM2','NM3'], plot=False):
@@ -160,31 +165,60 @@ class MP_data:
         #print(max_error)
         #print("Max error: %f.2" % max_error)
         # Write info to instance
+        self.calib = {'standards':  calib_stand,
+                      'exp_points': calib_points,
+                      'fit_params': params,
+                      'fit_r2': r2,
+                      'calib_maxerror': max_error}
+        self.calib_stand = calib_stand
+        self.calib_points = calib_points
         self.calib_params = params
         self.calib_r2 = r2
         self.calib_maxerror = max_error
         # Plot calibration
         if plot:
-            # Create figure
-            fig, ax = plt.subplots(1)
-            params_rev = np.polyfit(calib_stand, calib_points, 1)
-            # Plot points
-            ax.plot(calib_stand, calib_points, 'o', label='Marker')
-            # Plot calibration line
-            two_masses = np.array([np.min(calib_stand)-50, np.max(calib_stand)+50])
-            cal_label = 'Gradient: %.1E kDa\nIntercept: %.1E\nMax error: %.1f%%' % (params_rev[0], params_rev[1], max_error)
-            
-            ax.plot(two_masses, np.polyval(params_rev,two_masses), '--', zorder=-20, label=cal_label)
-            # Lables
-            ax.set_xlabel('Molecular mass / kDa')
-            ax.set_ylabel('Contrast')
-            ax.set_title('Calibration (R$^2=%.4f$)' % r2)
-            ax.legend()
-            fig.tight_layout()
+            self.plot_calibration()
         # Calibrate masses
-        self.calibrate_masses() 
+        self.calibrate_masses()
+        self.create_histo(only_masses=True)
         return None
 
+    def plot_calibration(self, ax=None):
+        '''
+        Plot calibration line
+        '''
+        # Check if calibration data is available
+        if not hasattr(self, 'calib'):
+            print("No calibration data available. Run calibrate first.")
+            return None
+        # Read calib data from instance
+        calib_stand = self.calib['standards']
+        calib_points = self.calib['exp_points']
+        max_error = self.calib['calib_maxerror']
+        r2 = self.calib['fit_r2']
+        
+        # Create fig if no axis is given
+        if ax==None:
+            fig, ax = plt.subplots(1)
+        else:
+            fig = plt.gcf()
+
+        # Do reverse fit for function of contrast
+        params_rev = np.polyfit(calib_stand, calib_points, 1)
+        # Plot points
+        ax.plot(calib_stand, calib_points, 'o', label='Calibration standard')
+        # Plot calibration line
+        two_masses = np.array([np.min(calib_stand)-50, np.max(calib_stand)+50])
+        cal_label = 'Gradient: %.1E kDa\nIntercept: %.1E\nMax error: %.1f%%' % (params_rev[0], params_rev[1], max_error)
+        ax.plot(two_masses, np.polyval(params_rev,two_masses), '--', zorder=-20, label=cal_label)
+        # Lables
+        ax.set_xlabel('Molecular mass / kDa')
+        ax.set_ylabel('Contrast')
+        ax.set_title('Calibration (R$^2=%.4f$)' % r2)
+        ax.legend()
+        fig.tight_layout()
+        return ax
+    
     def calibrate_masses(self):
         '''
         Function to calibrate masses from
@@ -194,7 +228,6 @@ class MP_data:
         if hasattr(self, 'calib_params'):
             # Convert contrasts to masses
             self.masses_kDa = np.polyval(self.calib_params, self.contrasts)
-            self.create_histo()
             print("Successfully calibrated masses/kDa and created mass histogram")
         else:
             print("No calibration parameters found!")
@@ -290,6 +323,7 @@ class MP_data:
             counts = self.hist_counts_contrasts
             centers = self.hist_centers_contrasts
             binwidth = self.hist_binwidth_contrasts
+            print(binwidth)
             # Check if fit results are available
             if hasattr(self, 'fit_contrasts'):
                 fit, error, popt, pcov, weights = self.fit_contrasts.values()
