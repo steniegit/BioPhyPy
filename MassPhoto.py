@@ -310,7 +310,7 @@ class MP_data:
                                                        'Counts / %': np.round(np.array(list_counts)/self.n_binding*100)})
         return None
     
-    def plot_histo(self, plot_weights=False, xlim=[0, 2000], ylim=[], ax=None, show_labels=True, contrasts=False):
+    def plot_histo(self, plot_weights=False, xlim=[0, 2000], ylim=[], ax=None, show_labels=True, contrasts=False, short_labels=False):
         '''
         Plot histogram of data
         plot_weights: plot weights used for gaussian fits
@@ -403,9 +403,15 @@ class MP_data:
                 # Add label
                 if show_labels:
                     if contrasts:
-                        text_label = "%.2E \n$\sigma=%.2E\,$\n%.0f$\,$counts \n(%.0f%%)" % (pos, width/2/np.sqrt(2*np.log(2)), auc, auc/self.n_binding*100)
+                        if short_labels:
+                            text_label = "%.2E" % pos
+                        else:
+                            text_label = "%.2E \n$\sigma=%.2E\,$\n%.0f$\,$counts \n(%.0f%%)" % (pos, width/2/np.sqrt(2*np.log(2)), auc, auc/self.n_binding*100)
                     else:
-                        text_label = "%.0f kDa\n$\sigma=%.0f\,$kDa\n%.0f$\,$counts \n(%.0f%%)" % (pos, width/2/np.sqrt(2*np.log(2)), auc, auc/self.n_binding*100)
+                        if short_labels:
+                            text_label = "%.0f kDa" % pos
+                        else:
+                            text_label = "%.0f kDa\n$\sigma=%.0f\,$kDa\n%.0f$\,$counts \n(%.0f%%)" % (pos, width/2/np.sqrt(2*np.log(2)), auc, auc/self.n_binding*100)
                     ax.text(pos, height+0.05*np.max(counts), text_label , ha='center', va='bottom')
             if plot_weights:
                 ax.plot(hist_centers, weights * np.max(counts), color='k')
