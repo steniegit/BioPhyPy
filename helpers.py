@@ -650,7 +650,10 @@ def multi_gauss(x, *params):
         ctr = params[i]
         amp = params[i+1]
         wid = params[i+2]
-        y = y + amp * np.exp( -((x - ctr)/(wid/2))**2)
+        # Here the width is the FWHM
+        #y = y + amp * np.exp( -((x - ctr)/(wid/2))**2)
+        # This width corresponds to sigma
+        y = y + amp * np.exp(-1/2* ((x-ctr)/ wid)**2) 
     return y
 
 def trunc_gauss(x, cutoff, *params):

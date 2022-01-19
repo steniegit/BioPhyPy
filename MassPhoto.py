@@ -406,12 +406,12 @@ class MP_data:
                         if short_labels:
                             text_label = "%.2E" % pos
                         else:
-                            text_label = "%.2E \n$\sigma=%.2E\,$\n%.0f$\,$counts \n(%.0f%%)" % (pos, width/2/np.sqrt(2*np.log(2)), auc, auc/self.n_binding*100)
+                            text_label = "%.2E \n$\sigma=%.2E\,$\n%.0f$\,$counts \n(%.0f%%)" % (pos, width, auc, auc/self.n_binding*100)
                     else:
                         if short_labels:
                             text_label = "%.0f kDa" % pos
                         else:
-                            text_label = "%.0f kDa\n$\sigma=%.0f\,$kDa\n%.0f$\,$counts \n(%.0f%%)" % (pos, width/2/np.sqrt(2*np.log(2)), auc, auc/self.n_binding*100)
+                            text_label = "%.0f kDa\n$\sigma=%.0f\,$kDa\n%.0f$\,$counts \n(%.0f%%)" % (pos, width, auc, auc/self.n_binding*100)
                     ax.text(pos, height+0.05*np.max(counts), text_label , ha='center', va='bottom')
             if plot_weights:
                 ax.plot(hist_centers, weights * np.max(counts), color='k')
@@ -423,7 +423,7 @@ class MP_data:
         ax.text(x_border*.99, y_border*.99, "Total counts: %i\nBinding: %.0f%%\nUnbinding: %.0f%%" % (self.n_counts, self.n_binding/self.n_counts*100, self.n_unbinding/self.n_counts*100), va='top', ha='right')
         return fig, ax
     
-    def fit_histo(self, xlim=[], guess_pos=[], tol=100, tol_contrasts = 0.05, max_width=200, max_width_contrasts=0.005, weighted=False, weighted_width=200, weighted_width_contrasts=0.005, contrasts=False, cutoff=0):
+    def fit_histo(self, xlim=[], guess_pos=[], tol=100, tol_contrasts = 0.05, max_width=50, max_width_contrasts=0.005, weighted=False, weighted_width=200, weighted_width_contrasts=0.005, contrasts=False, cutoff=0):
         '''
         Fit gaussians to histogram
         xlim: fit range
