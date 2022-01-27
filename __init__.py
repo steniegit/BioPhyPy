@@ -3,9 +3,10 @@ This is a set of Python classes which helps analyzing vibrational spectra and QM
 """
 
 from .helpers import * # some functions are useful to have in the analysis script
-from .MassPhoto import MP_data
-from .CircDichro import CD_data
-from .MST import MST_data
-from .MassSpec import MS_data
-from .DLS import DLS_data
+from .MP_data import MP_data
+from .CD_data import CD_data
+from .MST_data import MST_data
+from .MS_data import MS_data
+from .DLS_data import DLS_data
+from .IR_data import OpusData
 
