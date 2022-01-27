@@ -286,7 +286,7 @@ class MP_data:
             # Loop over entries in optimized parameters
             for i in range(int(len(popt)/3)):
                 list_pos.append(popt[3*i])
-                list_sigma.append(popt[3*i+2]/2/np.sqrt(2*np.log(2)))
+                list_sigma.append(popt[3*i+2])
                 list_counts.append(np.trapz(fit[:,i+1], x=fit[:,0]) / np.diff(hist_centers)[0])
             self.fit_table_contrasts = pd.DataFrame(data={'Position': list_pos,
                                                           'Sigma': list_sigma,
@@ -302,12 +302,13 @@ class MP_data:
             # Loop over entries in optimized parameters
             for i in range(int(len(popt)/3)):
                 list_pos.append(popt[3*i])
-                list_sigma.append(popt[3*i+2]/2/np.sqrt(2*np.log(2)))
+                list_sigma.append(popt[3*i+2])
                 list_counts.append(np.trapz(fit[:,i+1], x=fit[:,0]) / np.diff(self.hist_centers)[0])
             self.fit_table_masses = pd.DataFrame(data={'Position / kDa': list_pos,
                                                        'Sigma / kDa': list_sigma,
                                                        'Counts' : list_counts,
                                                        'Counts / %': np.round(np.array(list_counts)/self.n_binding*100)})
+            print("Created fit_table_masses")
         return None
     
     def plot_histo(self, plot_weights=False, xlim=[0, 2000], ylim=[], ax=None, show_labels=True, contrasts=False, short_labels=False):
