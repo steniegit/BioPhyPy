@@ -424,7 +424,7 @@ class MP_data:
         ax.text(x_border*.99, y_border*.99, "Total counts: %i\nBinding: %.0f%%\nUnbinding: %.0f%%" % (self.n_counts, self.n_binding/self.n_counts*100, self.n_unbinding/self.n_counts*100), va='top', ha='right')
         return fig, ax
     
-    def fit_histo(self, xlim=[], guess_pos=[], tol=100, tol_contrasts = 0.05, max_width=100, max_width_contrasts=0.005, weighted=False, weighted_width=200, weighted_width_contrasts=0.005, contrasts=False, cutoff=0):
+    def fit_histo(self, xlim=[], guess_pos=[], tol=100, tol_contrasts = 0.05, max_width=100, max_width_contrasts=0.005, weighted=False, weighted_width=200, weighted_width_contrasts=0.005, contrasts=False, cutoff=0, fit_points=1000):
         '''
         Fit gaussians to histogram
         xlim: fit range
@@ -435,6 +435,7 @@ class MP_data:
         weighted_width: FWHM for weights
         contrasts: fit contrasts instead of masses
         cutoff: lower cutoff for gaussian function. E.g. for 'RefeynOne' the lower cutoff is 40 kDa (for masses), for 'RefeynTwo' it is 30 kDa. If not sure select 0
+        fit_points: How many points are used for plotted fits (the more the finer), default is 1000
         '''
         # Depending on contrasts select the right quantity
         if contrasts:
@@ -494,7 +495,7 @@ class MP_data:
         popt, pcov = curve_fit(func, centers, counts, p0=fit_guess, bounds=bounds, sigma=sigma)  #, method='dogbox', maxfev=1E5)
         # Create fit and individual gaussians for plotting
         # Finer grid
-        x = np.linspace(np.min(centers), np.max(centers), 1000)
+        x = np.linspace(np.min(centers), np.max(centers), fit_points)
         single_gauss = []
         for i in range(0, len(popt), 3):
             ctr = popt[i]
