@@ -125,9 +125,10 @@ class MS_data():
         #distance = distance // np.min(np.diff(self.spec[:,0]))
         peaks, info = ssi.find_peaks(self.spec[:,1], **params)
         self.peaks = peaks
+        self.peaks_kda = self.spec[peaks,0]
         self.peak_info = info
-        print("Found %i peaks" % len(self.peaks))
-        print(self.peaks)
+        print("Found %i peaks" % len(self.peaks_kda))
+        print(self.peaks_kda)
         return None
 
     # def bl_correction(self, params={}):
