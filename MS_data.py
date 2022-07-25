@@ -6,6 +6,20 @@ from .helpers import *
 import pandas as pd
 import numpy as np
 
+def gauss(x, ctr, amp, wid, offset):
+    '''
+    Gaussian fit with offset, width corresponds to sigma
+    '''
+    return amp * np.exp(-1/2* ((x-ctr)/ wid)**2) + offset
+
+def lorentz(x, ctr, amp, wid, offset):
+    '''
+    Multiple lorentzian function
+    Inputs x values and gaussian parameters
+    Outputs y values
+    '''
+    return amp * wid / (2*np.pi) / ((x-ctr)**2+(wid/2)**2) + offset
+    
 class MS_data():
     ''' 
     To do
@@ -47,6 +61,46 @@ class MS_data():
         self.spec = np.vstack([xi, yi]).T
         return None
 
+    def truncate(self, xlim=[0,50]):
+        '''
+        Truncates dataset and deletes point outside xlim
+        '''
+        # Get indices
+        inds = np.argwhere((self.spec[:,0] > xlim[0]) * (self.spec[:,0] < xlim[1])).squeeze()
+        # Shorten spec
+        self.spec = self.spec[inds, :]
+        return None
+
+    def fit(self, fit_type='gauss'):
+        '''
+        Simple gaussian fit
+        Data is saved in gauss_params and gauss_fit
+        fit_type: 'gauss' or 'lorentz'
+        '''
+        # Determine max and max_pos for initial guess
+        guess_amp = np.max(self.spec[:,1])
+        guess_pos = self.spec[np.argmax(self.spec[:,1]),0]
+        guess_offset = self.spec[0,1]
+        guess_sigma = 3
+        # Bounds for fit
+        lower_bounds = (np.min(self.spec[:,0]), 0, 0, 0)
+        upper_bounds = (np.max(self.spec[:,0]), np.max(self.spec[:,1]), np.inf, np.max(self.spec[:,1]))
+        # Define function
+        if fit_type == 'gauss':
+            func = gauss
+        elif fit_type == 'lorentz':
+            func = lorentz
+        else:
+            print("Error: choose either gauss or lorentz for fitting!")
+            return None
+        popt, pcov = curve_fit(func, self.spec[:,0], self.spec[:,1], p0=[guess_pos, guess_amp, guess_sigma, guess_offset], maxfev=int(1E5), bounds = (lower_bounds, upper_bounds))
+        # Create fit
+        fit = func(self.spec[:,0], *popt)
+        # Write to instance
+        self.fit_params = {'popt': popt, 'pcov': pcov}
+        self.fit_curve = fit
+        return None
+        
     def smooth(self, sg_window=101, sg_pol=2):
         '''
         This function uses a Savitzky-Golay filter for smoothening the data
