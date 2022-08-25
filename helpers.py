@@ -638,6 +638,11 @@ def plot_octet(data_folder='', seg_labels=['BL1', 'Load', 'BL2', 'Assoc.', 'Diss
 
     return fig, ax
         
+def gauss(x, ctr, amp, wid, offset):
+    '''
+    Gaussian fit with offset, width corresponds to sigma
+    '''
+    return amp * np.exp(-1/2* ((x-ctr)/ wid)**2) + offset
 
 def multi_gauss(x, *params):
     '''
@@ -654,6 +659,23 @@ def multi_gauss(x, *params):
         #y = y + amp * np.exp( -((x - ctr)/(wid/2))**2)
         # This width corresponds to sigma
         y = y + amp * np.exp(-1/2* ((x-ctr)/ wid)**2) 
+    return y
+
+def multi_gauss_offset(x, *params):
+    '''
+    Multi-gaussian with offset
+    '''
+    y = np.zeros_like(x)
+    for i in range(0, len(params)-1, 3):
+        ctr = params[i]
+        amp = params[i+1]
+        wid = params[i+2]
+        # Here the width is the FWHM
+        #y = y + amp * np.exp( -((x - ctr)/(wid/2))**2)
+        # This width corresponds to sigma
+        y = y + amp * np.exp(-1/2* ((x-ctr)/ wid)**2)
+    # Add offset
+    y += params[-1]
     return y
 
 def trunc_gauss(x, cutoff, *params):
@@ -682,6 +704,16 @@ def trunc_gauss_fixed(cutoff):
         return trunc_gauss(x, cutoff, *params)
     return return_func
 
+def lorentz(x, ctr, amp, wid, offset):
+    '''
+    Multiple lorentzian function
+    Inputs x values and gaussian parameters
+    Outputs y values
+    '''
+    # Second parameter is amplitude to make it comparable to gauss
+    tau = 2/(np.pi * amp)
+    return tau * wid / (2*np.pi) / ((x-ctr)**2+(wid/2)**2) + offset
+
 def multi_lorentz(x, *params):
     '''
     Multiple lorentzian function
@@ -697,6 +729,20 @@ def multi_lorentz(x, *params):
         y = y + tau * wid / (2*np.pi) / ((x-ctr)**2+(wid/2)**2)
     return y
 
+def multi_lorentz_offset(x, *params):
+    '''
+    Multi Lorentzian with offset
+    '''
+    y = np.zeros_like(x)
+    for i in range(0, len(params)-1, 3):
+        ctr = params[i]
+        # Second parameter is amplitude to make it comparable to gauss
+        tau = 2/(np.pi * params[i+1])
+        wid = params[i+2]
+        y = y + tau * wid / (2*np.pi) / ((x-ctr)**2+(wid/2)**2)
+    # Add offset
+    y += params[-1]
+        
 def gauss(x,center,height,fwhm=10):
     """ Single gaussian function                                     
     """

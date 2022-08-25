@@ -89,20 +89,24 @@ class MP_data:
         # Write parameters to instance
         self.hist_binwidth= bin_width
         # If masses_kDa exists
-        if hasattr(self, 'masses_kDa'):           
-            # Get min and maximum value
-            window = [np.floor(np.min(self.masses_kDa)), np.ceil(np.max(self.masses_kDa))]
-            # Determine number of bins based on bin_width
-            nbins = int((window[1] - window[0]) // bin_width)
-            # Create histogram
-            self.hist_counts, self.hist_bins = np.histogram(self.masses_kDa, range=window, bins=nbins)
-            # Write parameters to instance
-            self.hist_centers = 0.5 * (self.hist_bins[:-1] + self.hist_bins[1:])
-            self.hist_binwidth = bin_width
-            self.hist_window = window
-            self.hist_nbins = nbins
-            self.hist_window = window
-            self.hist_binwidth_contrasts = bin_width_contrasts
+        if hasattr(self, 'masses_kDa'):
+            # Also check if it contains nans
+            if np.isnan(self.masses_kDa).any():
+                print("Detected nans in masses_kDa")
+            else:
+                # Get min and maximum value
+                window = [np.floor(np.min(self.masses_kDa)), np.ceil(np.max(self.masses_kDa))]
+                # Determine number of bins based on bin_width
+                nbins = int((window[1] - window[0]) // bin_width)
+                # Create histogram
+                self.hist_counts, self.hist_bins = np.histogram(self.masses_kDa, range=window, bins=nbins)
+                # Write parameters to instance
+                self.hist_centers = 0.5 * (self.hist_bins[:-1] + self.hist_bins[1:])
+                self.hist_binwidth = bin_width
+                self.hist_window = window
+                self.hist_nbins = nbins
+                self.hist_window = window
+                self.hist_binwidth_contrasts = bin_width_contrasts
         # Do also for contrasts
         if not only_masses:
             # For contrast values do the same
@@ -240,10 +244,10 @@ class MP_data:
         fn: File name of exported file, will be copied to subfolder (location of h5 file)
         '''
         if hasattr(self, 'calib_params'):
-            fn_out = self.fn.replace('eventsFitted.h5','') + fn
+            #fn_out = self.fn.replace('eventsFitted.h5','') + fn
             # Concatenate arrays with parameters with R2
             out_array = np.concatenate((self.calib_params, np.array(self.calib_r2).reshape(1)))
-            np.savetxt(fn_out, out_array)
+            np.savetxt(fn, out_array)
             print("Saved parameters and R2 in %s" % fn_out)
         return None
 
@@ -254,7 +258,7 @@ class MP_data:
         '''
         # Check if file exists
         if not os.path.isfile(fn):
-            print("File %s not found!")
+            print("File %s not found!" % fn)
             print("No data imported.")
             return None
         # Read file
@@ -266,6 +270,7 @@ class MP_data:
         self.calib_r2 = in_array[-1]
         print("Calibration with R^2=%.4f successfully imported" % self.calib_r2)
         self.calibrate_masses()
+        
         return None
         
     def create_fit_table(self):

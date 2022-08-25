@@ -5,21 +5,7 @@ Mass spec data
 from .helpers import *
 import pandas as pd
 import numpy as np
-
-def gauss(x, ctr, amp, wid, offset):
-    '''
-    Gaussian fit with offset, width corresponds to sigma
-    '''
-    return amp * np.exp(-1/2* ((x-ctr)/ wid)**2) + offset
-
-def lorentz(x, ctr, amp, wid, offset):
-    '''
-    Multiple lorentzian function
-    Inputs x values and gaussian parameters
-    Outputs y values
-    '''
-    return amp * wid / (2*np.pi) / ((x-ctr)**2+(wid/2)**2) + offset
-    
+  
 class MS_data():
     ''' 
     To do
@@ -71,34 +57,64 @@ class MS_data():
         self.spec = self.spec[inds, :]
         return None
 
-    def fit(self, fit_type='gauss'):
+    def fit(self, fit_type='lorentz', number_fits=1, start_pos=[], start_width=[], fix=False):
         '''
         Simple gaussian fit
         Data is saved in gauss_params and gauss_fit
         fit_type: 'gauss' or 'lorentz'
+        number_fits: Number of function to fit
+        fix: fix position and widths to start values
         '''
         # Determine max and max_pos for initial guess
         guess_amp = np.max(self.spec[:,1])
         guess_pos = self.spec[np.argmax(self.spec[:,1]),0]
         guess_offset = self.spec[0,1]
         guess_sigma = 3
+        # Create list, last entry is offset
+        guesses = [guess_pos, guess_amp, guess_sigma]*number_fits + [np.finfo(float).eps]
+        # Adjust start positions if chosen
+        if (number_fits == len(start_pos)) and (len(start_pos)>0):
+            for i in range(number_fits):
+                guesses[3*i] = start_pos[i]
+        if (number_fits == len(start_width)) and (len(start_width)>0):
+            for i in range(number_fits):
+                guesses[3*i+2] = start_width[i]
         # Bounds for fit
-        lower_bounds = (np.min(self.spec[:,0]), 0, 0, 0)
-        upper_bounds = (np.max(self.spec[:,0]), np.max(self.spec[:,1]), np.inf, np.max(self.spec[:,1]))
+        lower_bounds = [np.min(self.spec[:,0]), 0, 0]*number_fits + [0]
+        upper_bounds = [np.max(self.spec[:,0]), .99*np.max(self.spec[:,1]), np.inf]*number_fits + [np.max(self.spec[:,1])] # np.max(self.spec[:,1])
+        # Adjust bounds
+        if fix:
+            # Start position
+            if (number_fits == len(start_pos)) and (len(start_pos)>0):
+                for i in range(number_fits):
+                    lower_bounds[3*i] = (1-np.finfo(float).eps)*start_pos[i]
+                    upper_bounds[3*i] = (1+np.finfo(float).eps)*start_pos[i]
+            # Start widths
+            if (number_fits == len(start_width)) and (len(start_width)>0):
+                for i in range(number_fits):
+                    lower_bounds[3*i+2] = (1-np.finfo(float).eps)*start_width[i]
+                    upper_bounds[3*i+2] = (1+np.finfo(float).eps)*start_width[i]
+        # Print bounds
+        #print(lower_bounds)
+        #print(upper_bounds)
         # Define function
         if fit_type == 'gauss':
-            func = gauss
+            func = multi_gauss_offset
         elif fit_type == 'lorentz':
-            func = lorentz
+            func = multi_lorentz_offset
         else:
             print("Error: choose either gauss or lorentz for fitting!")
             return None
-        popt, pcov = curve_fit(func, self.spec[:,0], self.spec[:,1], p0=[guess_pos, guess_amp, guess_sigma, guess_offset], maxfev=int(1E5), bounds = (lower_bounds, upper_bounds))
-        # Create fit
+        popt, pcov = curve_fit(func, self.spec[:,0], self.spec[:,1], p0=guesses, maxfev=int(1E7), bounds = (lower_bounds, upper_bounds))
+        # Create fit and single components
         fit = func(self.spec[:,0], *popt)
+        all_fits = [fit]
+        for i in range(number_fits):
+            all_fits.append(func(self.spec[:,0], *popt[3*i:3*(i+1)]))
+            
         # Write to instance
         self.fit_params = {'popt': popt, 'pcov': pcov}
-        self.fit_curve = fit
+        self.fit_curves = np.array(all_fits).T
         return None
         
     def smooth(self, sg_window=101, sg_pol=2):
