@@ -248,7 +248,7 @@ class MP_data:
             # Concatenate arrays with parameters with R2
             out_array = np.concatenate((self.calib_params, np.array(self.calib_r2).reshape(1)))
             np.savetxt(fn, out_array)
-            print("Saved parameters and R2 in %s" % fn_out)
+            print("Saved parameters and R2 in %s" % fn)
         return None
 
     def calibration_import(self, fn='calib.txt'):
