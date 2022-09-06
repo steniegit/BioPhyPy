@@ -113,6 +113,15 @@ class BLI_data:
             self.x = x_concat[0]
             self.y = y_concat.T
         return None
+
+    def plot_signal(self):
+        '''
+        Plots signal
+        '''
+        # Initialize figure
+        fig, ax = plt.subplots(1)
+        # Plot data
+        ax.plot(self.x, self.y)
         
         
 
