@@ -1379,3 +1379,22 @@ def plot_aoforce(freq, intensities,ax=None, fwhm=20, xlim=(0,4000), scalf=0.9711
 
     return (x, specsum,)
 
+
+def etree_to_dict(tree):
+    '''
+    Converts xml tree to dictionary
+    '''
+    tree_dict = {}
+    for elem in tree:
+        tree_dict[elem.tag] = elem.text
+    return tree_dict
+
+def combine_dicts(list_dicts):
+    '''
+    Combines dictionaries with the same (!) keys
+    Outputs dictionary with lists
+    '''
+    new_dict = {}
+    for key in list_dicts[0].keys():
+        new_dict[key] = [one_dict[key] for one_dict in list_dicts]
+    return new_dict
