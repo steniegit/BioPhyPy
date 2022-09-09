@@ -187,11 +187,15 @@ class BLI_data:
         # Loop through sample_sensors and subtract reference
         for sensor in sample_sensors:
             for step in range(self.no_steps):
+                print("Before")
+                print(self.ys[sensor][step])
                 self.ys[sensor][step] -= self.ys[ref_sensor][step]
+                print("After")
+                print(self.ys[sensor][step])
         return None
         
 
-    def plot(self, steps=[], sensors=[], show_step_name=True, legend='', legend_step=-1):
+    def plot(self, steps=[], sensors=[], show_step_name=True, legend='', legend_step=-1, ax=None, linestyle='-', alpha=1):
         '''
         Plots signal
         steps: which steps to include (list of integers)
@@ -204,6 +208,8 @@ class BLI_data:
         legend_step: in case 'SampleID' is chosen, this defines which SampleID
                      is chosen (step number). Default is the first step specified in
                      sensors.
+        linestyle: solid line '-', dotted line ':', points 'o' (matplotlib format)
+        alpha: alpha value for plot
         show_step_name: Show step name in plot
         '''
         # Check steps
@@ -214,13 +220,18 @@ class BLI_data:
         # Define legend_step if set to -1
         if legend_step == -1:
             legend_step = steps[0]
-        # Define legend entries
-        if legend in ['SampleID', 'Concentration', 'MolarConcentration']:
+        # Define legend entries, for concentrations also add units
+        if legend == 'SampleID':
             legend_entries = [self.step_info[sensor][legend][legend_step] for sensor in range(len(self.fns))]
+        elif legend in ['Concentration', 'MolarConcentration']:
+            legend_entries = [str(self.step_info[sensor][legend][legend_step]) + '$\,$' + self.step_info[sensor][legend.replace('MolarConcentration','MolarConc') + 'Units'][legend_step] for sensor in range(len(self.fns))]
         else:
-            legend_entries = ['']*len(self.fns)
+            legend_entries = range(len(self.fns))
         # Initialize figure
-        fig, ax = plt.subplots(1)
+        if ax==None:
+            fig, ax = plt.subplots(1)
+        else:
+            fig = ax.figure
         # Get color cycle
         cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
         # Plot data
@@ -229,13 +240,14 @@ class BLI_data:
             color = cycle[sensor]
             for step in steps:
                 if step == steps[0]:
-                    ax.plot(self.xs[sensor][step], self.ys[sensor][step], color=color, label=legend_entries[sensor])
+                    ax.plot(self.xs[sensor][step], self.ys[sensor][step], linestyle, color=color, label=legend_entries[sensor], alpha=alpha)
                 else:
-                    ax.plot(self.xs[sensor][step], self.ys[sensor][step], color=color)
+                    ax.plot(self.xs[sensor][step], self.ys[sensor][step], linestyle, color=color, alpha=alpha)
                 # Plot dashed lines for limits
                 ax.axvline(self.assay_time_cum[step], linestyle='--', color='gray', lw=.5)
         # Plot legend
-        ax.legend()
+        if len(legend) > 0:
+            ax.legend()
         # Show limits of steps and step names
         if show_step_name:
             # Get ylim
@@ -253,7 +265,7 @@ class BLI_data:
         ax.set_xlim([np.min(self.xs[0][steps[0]]), np.max(self.xs[0][steps[-1]])])
         ax.set_xlabel('Time / s')
         ax.set_ylabel('Response / nm')
-        return None
+        return fig, ax
             
 
         
