@@ -12,6 +12,7 @@ from scipy.optimize import curve_fit
 from .helpers import etree_to_dict, combine_dicts
 import matplotlib.pyplot as plt
 import scipy.signal as ssi
+from .helpers import *
 
 # To do
 
@@ -118,18 +119,36 @@ class BLI_data:
         ### To do 
         return None
 
+    def remove_ends(self, xremove=15):
+        '''
+        Artifacts at the beginning and end of each step
+        can cause trouble with the fits. With this function the first and last 15 points
+        of each step are removed
+        '''
+        # If xremove is 0 do not do anything
+        if xremove == 0:
+            return None
+        # Otherwise remove points
+        for sensor in range(len(self.fns)):
+            for step in range(self.no_steps):
+                self.xs[sensor][step] = self.xs[sensor][step][xremove:-xremove]
+                self.ys[sensor][step] = self.ys[sensor][step][xremove:-xremove]
+        return None
+
     def remove_jumps(self, xshift=5):
         '''
         Remove jumps between steps by subtracting the
         difference between steps
         xshift: Take the nth point (default 5)
-        
         '''
-        ### To do
+        # Catch exception
+        if xshift==0:
+            return None
+        # Otherwise remove jumps
         for sensor in range(len(self.fns)):
             for step in range(self.no_steps-1):
-                curr_y = self.ys[sensor][step][-1]
-                next_y = self.ys[sensor][step+1][0+xshift]
+                curr_y = np.mean(self.ys[sensor][step][-xshift:])
+                next_y = np.mean(self.ys[sensor][step+1][0:xshift])
                 diff = next_y - curr_y
                 # Adjust height of next step
                 self.ys[sensor][step+1] -= diff
@@ -187,11 +206,7 @@ class BLI_data:
         # Loop through sample_sensors and subtract reference
         for sensor in sample_sensors:
             for step in range(self.no_steps):
-                print("Before")
-                print(self.ys[sensor][step])
                 self.ys[sensor][step] -= self.ys[ref_sensor][step]
-                print("After")
-                print(self.ys[sensor][step])
         return None
         
 
@@ -266,8 +281,87 @@ class BLI_data:
         ax.set_xlabel('Time / s')
         ax.set_ylabel('Response / nm')
         return fig, ax
-            
 
+
+    def fit_data(self, sensors=[0], step_assoc=3, step_dissoc=4, func='biexp', plot=True, order='a', norm=True):
+        '''
+        Fit rise and decay for data
+        sensors: List of sensors
+        step_assoc: Association step
+        step_dissoc: Dissociation step
+        func: 'biexp' oder 'monoexp'
+ss        plot: Plot result
+        '''
+        # Get color cycle
+        cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
+        # Create instance with fit results if not already there
+        if not hasattr(self, 'fit_results'):
+                self.fit_results = {}
+        for sensor in sensors:
+            # Select data
+            assoc, assoc_time = self.ys[sensor][step_assoc], self.xs[sensor][step_assoc]
+            dissoc, dissoc_time = self.ys[sensor][step_dissoc], self.xs[sensor][step_dissoc]
+            # Normalize assoc and dissoc
+            #assoc = (assoc - np.min(assoc))/(np.max(assoc) - np.min(assoc))
+            #dissoc = (dissoc - np.min(dissoc))/(np.max(dissoc) - np.min(dissoc))
+            # Normalize times, necessary for the fits
+            assoc_time_offset = np.min(assoc_time)
+            assoc_time -= assoc_time_offset
+            dissoc_time_offset = np.min(dissoc_time)
+            dissoc_time -= dissoc_time_offset
+            # Choose function
+            if func=='biexp':
+                func_assoc = biexp_rise_offset
+                func_dissoc = biexp_decay_offset
+                guess = (.5, .5, .1, .1, np.max(assoc), 0)
+            elif func == 'monoexp':
+                func_assoc = exp_rise_offset
+                func_dissoc = exp_decay_offset
+                guess = (.5, np.max(assoc), 0)
+            # Perform association fitting
+            try:
+                fit_popt_assoc, fit_pcov_assoc = curve_fit(func_assoc, assoc_time, assoc, p0=guess, bounds=(0, np.inf))
+            except:
+                print("Could not fit association for sensor %i" % (sensor))
+                pass
+            fitted_assoc = func_assoc(assoc_time, *fit_popt_assoc)
+            # Perform dissociation fitting
+            try:
+                fit_popt_dissoc, fit_pcov_dissoc = curve_fit(func_dissoc, dissoc_time, dissoc, p0=guess, bounds=(0, np.inf))
+            except:
+                print("Could not fit association for sensor %i" % (sensor))
+                pass
+            fitted_dissoc = func_dissoc(dissoc_time, *fit_popt_dissoc)
+            # Undo normalization of times
+            assoc_time += assoc_time_offset
+            dissoc_time += dissoc_time_offset
+            # Save fit results to instance              
+            self.fit_results[sensor] = {}
+            self.fit_results[sensor]['fit_popt_assoc'] = fit_popt_assoc
+            self.fit_results[sensor]['fit_pcov_assoc'] = fit_pcov_assoc
+            self.fit_results[sensor]['fit_popt_dissoc'] = fit_popt_dissoc
+            self.fit_results[sensor]['fit_pcov_dissoc'] = fit_pcov_dissoc
+            # Calculate Kd
+            kobs = fit_popt_assoc[0]
+            kdiss = fit_popt_dissoc[0]
+            # Plot results
+            if plot:
+                fig, ax = plt.subplots(1)
+                # Pick color
+                color = cycle[sensor]
+                # Plot assoc and fit
+                ax.plot(assoc_time, assoc, '.') #, color=color)
+                ax.plot(assoc_time, fitted_assoc, '--') #, color='C01', lw=2)
+                # Plot dissoc and fit
+                ax.plot(dissoc_time, dissoc, '.') #, color=color)
+                ax.plot(dissoc_time, fitted_dissoc, '--') #, '--', color='C01', lw=2)
+        return None
+                
+            
+            
+            
+            
+        
         
     # def concatenate_signal(self):
     #     '''

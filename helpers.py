@@ -477,6 +477,20 @@ def biexp_rise(x, a1, a2, k1, k2, c):
 def biexp_decay(x, a1, a2, k1, k2, c):
     return c*(a1*np.exp(-k1*x) + a2*np.exp(-k2*x))
 
+## Offset versions
+
+def exp_rise_offset(x, k, c, offset):
+    return c*(1 - np.exp(-k*x))+offset
+
+def exp_decay_offset(x, k, c, offset):
+    return c*np.exp(-k*x) + offset
+    
+def biexp_rise_offset(x, a1, a2, k1, k2, c, offset):
+    return c*(1 - a1*np.exp(-k1*x) - a2*np.exp(-k2*x)) + offset
+
+def biexp_decay_offset(x, a1, a2, k1, k2, c, offset):
+    return c*(a1*np.exp(-k1*x) + a2*np.exp(-k2*x)) + offset
+
 ##### End: kinetic functions from Godfrey
 
 def r_sq(data, fit):
