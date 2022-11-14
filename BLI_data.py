@@ -219,7 +219,7 @@ class BLI_data:
                if not specified, all steps are plotted
         legend: which entry to use as legend, leave empty string if no
                 legend shall be shown
-                'SampleID', 'Concentration', 'MolarConcentration'
+                'SampleID', 'Concentration', 'MolarConcentration', 'SensorID'
         legend_step: in case 'SampleID' is chosen, this defines which SampleID
                      is chosen (step number). Default is the first step specified in
                      sensors.
@@ -241,7 +241,8 @@ class BLI_data:
         elif legend in ['Concentration', 'MolarConcentration']:
             legend_entries = [str(self.step_info[sensor][legend][legend_step]) + '$\,$' + self.step_info[sensor][legend.replace('MolarConcentration','MolarConc') + 'Units'][legend_step] for sensor in range(len(self.fns))]
         else:
-            legend_entries = range(len(self.fns))
+            legend_entries = list(map(str, list(range(len(self.fns)))))
+        print(legend_entries)
         # Initialize figure
         if ax==None:
             fig, ax = plt.subplots(1)
@@ -261,7 +262,7 @@ class BLI_data:
                 # Plot dashed lines for limits
                 ax.axvline(self.assay_time_cum[step], linestyle='--', color='gray', lw=.5)
         # Plot legend
-        if len(legend) > 0:
+        if len(legend_entries) > 0:
             ax.legend()
         # Show limits of steps and step names
         if show_step_name:
