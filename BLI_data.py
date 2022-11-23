@@ -356,7 +356,9 @@ ss        plot: Plot result
                 # Plot dissoc and fit
                 ax.plot(dissoc_time, dissoc, '.') #, color=color)
                 ax.plot(dissoc_time, fitted_dissoc, '--') #, '--', color='C01', lw=2)
-        return None
+                ax.set_xlabel('Time / s')
+                ax.set_ylabel('Response / nm')
+        return fig, ax
                 
             
             
