@@ -131,8 +131,10 @@ class BLI_data:
         # Otherwise remove points
         for sensor in range(len(self.fns)):
             for step in range(self.no_steps):
+                #print("Before cutting: %i points" % len(self.xs[sensor][step]))
                 self.xs[sensor][step] = self.xs[sensor][step][xremove:-xremove]
                 self.ys[sensor][step] = self.ys[sensor][step][xremove:-xremove]
+                #print("After cutting: %i points" % len(self.xs[sensor][step]))
         return None
 
     def remove_jumps(self, xshift=5):
@@ -264,6 +266,9 @@ class BLI_data:
         # Plot legend
         if len(legend_entries) > 0:
             ax.legend()
+        # Adjust ylim if desired
+        if len(ylim) ==2 :
+            ax.set_ylim(ylim)
         # Show limits of steps and step names
         if show_step_name:
             # Get ylim
@@ -276,7 +281,6 @@ class BLI_data:
             for step in steps:
                 pos = np.mean((times[step], times[step+1]))
                 ax.text(pos, ylim, step_text[step], va='bottom', ha='center')
-                
         # Set xlims
         ax.set_xlim([np.min(self.xs[0][steps[0]]), np.max(self.xs[0][steps[-1]])])
         ax.set_xlabel('Time / s')
