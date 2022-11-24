@@ -346,6 +346,9 @@ ss        plot: Plot result
             self.fit_results[sensor]['fit_pcov_assoc'] = fit_pcov_assoc
             self.fit_results[sensor]['fit_popt_dissoc'] = fit_popt_dissoc
             self.fit_results[sensor]['fit_pcov_dissoc'] = fit_pcov_dissoc
+            # Write R2
+            self.fit_results[sensor]['r2_assoc'] = r_sq(fitted_assoc, assoc)
+            self.fit_results[sensor]['r2_dissoc'] = r_sq(fitted_dissoc, dissoc)
             # Calculate Kd
             kobs = fit_popt_assoc[0]
             kdiss = fit_popt_dissoc[0]
