@@ -96,6 +96,9 @@ class BLI_data:
         self.assay_time = self.step_info[0]['ActualTime']
         self.assay_time_cum = np.cumsum(self.assay_time)
         self.no_steps = len(self.assay_time)
+        self.no_sensors = len(self.fns)
+        # Convert concentrations to readable numbers
+        self.convert_conc()
         # # Check if x-values for each file are identical and reduce dimension
         # self.concatenate_x()
         return None
@@ -111,6 +114,36 @@ class BLI_data:
             for sensor in range(len(self.fns)):
                 self.step_info[sensor][entry] = np.array(self.step_info[sensor][entry], dtype=float)
         return None
+
+    def convert_conc(self):
+        '''
+        Converts concentrations to mg/ml and M
+        '''
+        for sensor in range(self.no_sensors):
+            # Convert weight concentration
+            if self.step_info[sensor]['ConcentrationUnits'][0] == 'µg/ml':
+                fact = 1E-3
+            elif self.step_info[sensor]['ConcentrationUnits'][0] == 'mg/ml':
+                fact = 1
+            else:
+                print("Could not convert the following concentration unit: %s" % self.step_info[sensor]['ConcentrationUnits'])
+                return None
+            # Convert weight concentration
+            self.step_info[sensor]['Concentration_mg/ml'] = fact * self.step_info[sensor]['Concentration']
+            # Now convert molar conc            
+            if self.step_info[sensor]['MolarConcUnits'][0] == 'nM':
+                fact = 1E-9
+            elif self.step_info[sensor]['MolarConcUnits'][0] == 'µM':
+                fact = 1E-6
+            elif self.step_info[sensor]['MolarConcUnits'][0] == 'mM':
+                fact = 1E-3
+            else:
+                print("Could not convert the following molar concentration unit: %s" % self.step_info[sensor]['MolarConcUnits'])
+                return None
+            # Convert weight concentration
+            self.step_info[sensor]['MolarConcentration_M'] = fact * self.step_info[sensor]['MolarConcentration']
+        return None
+
 
     def sanity_check(self):
         '''
@@ -212,7 +245,7 @@ class BLI_data:
         return None
         
 
-    def plot(self, steps=[], sensors=[], ylim=[], show_step_name=True, legend='', legend_step=-1, ax=None, linestyle='-', alpha=1):
+    def plot(self, steps=[], sensors=[], ylim=[], show_step_name=True, legend='', legend_step=-1, ax=None, linestyle='-', alpha=1, abbrev_step_names=False):
         '''
         Plots signal
         steps: which steps to include (list of integers)
@@ -222,13 +255,15 @@ class BLI_data:
         ylim: y-limits for plot
         legend: which entry to use as legend, leave empty string if no
                 legend shall be shown
-                'SampleID', 'Concentration', 'MolarConcentration', 'SensorID'
+                'SampleID', 'Concentration', 'MolarConcentration', 'SensorID',
+                'Concentration_M', 'MolarConcentration_M'
         legend_step: in case 'SampleID' is chosen, this defines which SampleID
                      is chosen (step number). Default is the first step specified in
                      sensors.
         linestyle: solid line '-', dotted line ':', points 'o' (matplotlib format)
         alpha: alpha value for plot
         show_step_name: Show step name in plot
+        abbrev_step_names: Abbreviate step names in plot
         '''
         # Check steps
         if len(steps) == 0:
@@ -243,6 +278,10 @@ class BLI_data:
             legend_entries = [self.step_info[sensor][legend][legend_step] for sensor in range(len(self.fns))]
         elif legend in ['Concentration', 'MolarConcentration']:
             legend_entries = [str(self.step_info[sensor][legend][legend_step]) + '$\,$' + self.step_info[sensor][legend.replace('MolarConcentration','MolarConc') + 'Units'][legend_step] for sensor in range(len(self.fns))]
+        elif legend == 'Concentration_mg/ml':
+            legend_entries = [('%.0e$\,$mg/ml' % self.step_info[sensor][legend][legend_step])  for sensor in range(len(self.fns))]
+        elif legend == 'MolarConcentration_M':
+            legend_entries = [('%.0e$\,$M' % self.step_info[sensor][legend][legend_step])  for sensor in range(len(self.fns))]
         else:
             legend_entries = list(map(str, list(range(len(self.fns)))))
         print(legend_entries)
@@ -281,7 +320,11 @@ class BLI_data:
             # Iterate through steps
             for step in steps:
                 pos = np.mean((times[step], times[step+1]))
-                ax.text(pos, ylim, step_text[step], va='bottom', ha='center')
+                if abbrev_step_names:
+                      text = step_text[step].replace('Baseline','BL').replace('Loading','Load.')
+                else:
+                      text = step_text[step]
+                ax.text(pos, ylim, text, va='bottom', ha='center')
         # Set xlims
         ax.set_xlim([np.min(self.xs[0][steps[0]]), np.max(self.xs[0][steps[-1]])])
         ax.set_xlabel('Time / s')
@@ -341,8 +384,12 @@ ss        plot: Plot result
             # Undo normalization of times
             assoc_time += assoc_time_offset
             dissoc_time += dissoc_time_offset
-            # Save fit results to instance              
-            self.fit_results[sensor] = {}
+            # Save fit results to instance
+            if self.hasattr('fit_results'):
+                print("There are already fits available!")
+                print("Will overwrite selected ones")
+            else:
+                self.fit_results[sensor] = {}
             self.fit_results[sensor]['fit_popt_assoc'] = fit_popt_assoc
             self.fit_results[sensor]['fit_pcov_assoc'] = fit_pcov_assoc
             self.fit_results[sensor]['fit_popt_dissoc'] = fit_popt_dissoc
@@ -367,9 +414,26 @@ ss        plot: Plot result
                 ax.set_xlabel('Time / s')
                 ax.set_ylabel('Response / nm')
         return fig, ax
-                
+
+    def calculate_Kd(self):
+        '''
+        Calculates Kd value from fitting results
+        '''
+        # Check for which sensors, fitting was done
+        if hasattr(self, 'fit_results'):
+            sensors = list(self.fit_results.keys())
+            print("Fit results found for these sensors (counting starts at 0)")
+            print(sensors)
+        else:
+            print("No fitting done yet! Run fit_data first.")
+            return None
+        for sensor in sensors:
+            print('Sensor %i' % sensor)
+        
+        return None
+        
             
-            
+
             
             
         
