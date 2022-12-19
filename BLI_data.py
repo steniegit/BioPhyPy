@@ -321,7 +321,7 @@ class BLI_data:
             for step in steps:
                 pos = np.mean((times[step], times[step+1]))
                 if abbrev_step_names:
-                      text = step_text[step].replace('Baseline','BL').replace('Loading','Load.')
+                      text = step_text[step].replace('Baseline','BL').replace('Loading','Load.').replace('Association','Assoc.').replace('Dissociation','Dissoc.')
                 else:
                       text = step_text[step]
                 ax.text(pos, ylim, text, va='bottom', ha='center')
