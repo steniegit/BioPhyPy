@@ -212,13 +212,14 @@ class BLI_data:
         return None
         
 
-    def plot(self, steps=[], sensors=[], show_step_name=True, legend='', legend_step=-1, ax=None, linestyle='-', alpha=1):
+    def plot(self, steps=[], sensors=[], ylim=[], show_step_name=True, legend='', legend_step=-1, ax=None, linestyle='-', alpha=1):
         '''
         Plots signal
         steps: which steps to include (list of integers)
                if not specified, all steps are plotted
         sensors: which sensors to include (list of integers)
                if not specified, all steps are plotted
+        ylim: y-limits for plot
         legend: which entry to use as legend, leave empty string if no
                 legend shall be shown
                 'SampleID', 'Concentration', 'MolarConcentration', 'SensorID'
