@@ -284,7 +284,6 @@ class BLI_data:
             legend_entries = [('%.0e$\,$M' % self.step_info[sensor][legend][legend_step])  for sensor in range(len(self.fns))]
         else:
             legend_entries = list(map(str, list(range(len(self.fns)))))
-        print(legend_entries)
         # Initialize figure
         if ax==None:
             fig, ax = plt.subplots(1)
@@ -339,7 +338,7 @@ class BLI_data:
         step_assoc: Association step
         step_dissoc: Dissociation step
         func: 'biexp' oder 'monoexp'
-ss        plot: Plot result
+        plot: Plot result
         '''
         # Get color cycle
         cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
@@ -385,7 +384,9 @@ ss        plot: Plot result
             assoc_time += assoc_time_offset
             dissoc_time += dissoc_time_offset
             # Save fit results to instance
-            if self.hasattr('fit_results'):
+            #if hasattr(self, 'fit_results'):
+            print(self.fit_results)
+            if sensor in self.fit_results:
                 print("There are already fits available!")
                 print("Will overwrite selected ones")
             else:
@@ -398,8 +399,22 @@ ss        plot: Plot result
             self.fit_results[sensor]['r2_assoc'] = r_sq(fitted_assoc, assoc)
             self.fit_results[sensor]['r2_dissoc'] = r_sq(fitted_dissoc, dissoc)
             # Calculate Kd
-            kobs = fit_popt_assoc[0]
-            kdiss = fit_popt_dissoc[0]
+            if func=='monoexp':
+                kobs = fit_popt_assoc[sensor]
+                kdiss = fit_popt_dissoc[sensor]
+                conc = self.step_info[sensor]['MolarConcentration_M'][step_assoc]
+                r2_assoc = self.fit_results[sensor]['r2_assoc']
+                r2_dissoc = self.fit_results[sensor]['r2_dissoc']
+                # Calculate kon
+                kon = (kobs + kdiss) / conc
+                print("Sensor %i: Kobs is %.1e 1/s" % (sensor, kobs))
+                print("Sensor %i: Kdis is %.1e 1/s" % (sensor, kdiss))
+                print("Sensor %i: Kon is %.1e 1/s" % (sensor, kon))
+                # Calculate Kd
+                Kd = kdiss/kon
+                print("Sensor %i: Determined Kd of %.1e M" % (sensor, Kd))
+            else:
+               pass
             # Plot results
             if plot:
                 fig, ax = plt.subplots(1)
@@ -413,6 +428,23 @@ ss        plot: Plot result
                 ax.plot(dissoc_time, fitted_dissoc, '--') #, '--', color='C01', lw=2)
                 ax.set_xlabel('Time / s')
                 ax.set_ylabel('Response / nm')
+                # Add fitting info
+                if func == 'monoexp':
+                    # Get dimensions
+                    xlim = ax.get_xlim()
+                    ylim = ax.get_ylim()
+                    ax.text(xlim[1], ylim[1], 'Fit binding:\n\
+                    k$_\mathrm{obs}$: %.1e 1/s\
+                    \nR$^2$: %.4f\n\
+                    Fit dissociation:\n\
+                    k$_\mathrm{diss}$: %.1e 1/s\n\
+                    R$^2$: %.4f\n\
+                    Calculated:\n\
+                    k$_\mathrm{on}$: %.1e 1/sM\n\
+                    K$_d$: %.1e M' % (kobs, r2_assoc, kdiss, r2_dissoc, kon, Kd),
+                            ha='left', va='top')
+                elif func == 'biexp':
+                    pass
         return fig, ax
 
     def calculate_Kd(self):
