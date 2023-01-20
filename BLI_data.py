@@ -273,17 +273,21 @@ class BLI_data:
         # Define legend_step if set to -1
         if legend_step == -1:
             legend_step = steps[0]
-        # Define legend entries, for concentrations also add units
-        if legend == 'SampleID':
-            legend_entries = [self.step_info[sensor][legend][legend_step] for sensor in range(len(self.fns))]
-        elif legend in ['Concentration', 'MolarConcentration']:
+        # Define legend entries, for concentrations add units
+        if legend in ['Concentration', 'MolarConcentration']:
             legend_entries = [str(self.step_info[sensor][legend][legend_step]) + '$\,$' + self.step_info[sensor][legend.replace('MolarConcentration','MolarConc') + 'Units'][legend_step] for sensor in range(len(self.fns))]
         elif legend == 'Concentration_mg/ml':
             legend_entries = [('%.0e$\,$mg/ml' % self.step_info[sensor][legend][legend_step])  for sensor in range(len(self.fns))]
         elif legend == 'MolarConcentration_M':
             legend_entries = [('%.0e$\,$M' % self.step_info[sensor][legend][legend_step])  for sensor in range(len(self.fns))]
         else:
-            legend_entries = list(map(str, list(range(len(self.fns)))))
+            # Check that entry actually exists
+            if legend in self.step_info[0].keys():
+                legend_entries = [('%s' % self.step_info[sensor][legend][legend_step])  for sensor in range(len(self.fns))]
+            # Otherwise just print out indices
+            else:
+                print("Did not find entry %s for legend. Will just use indices" % legend)
+                legend_entries = list(map(str, list(range(len(self.fns)))))
         # Initialize figure
         if ax==None:
             fig, ax = plt.subplots(1)
