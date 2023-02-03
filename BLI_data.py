@@ -36,6 +36,8 @@ class BLI_data:
             return None
         else:
             print("Found %i frd files" % len(fns))
+            # Sort them
+            fns.sort()
             print(fns)
             self.fns = fns
         # Initialize dictionaries with data
