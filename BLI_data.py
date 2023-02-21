@@ -114,7 +114,19 @@ class BLI_data:
                    'AssayTime', 'FlowRate', 'ActualTime', 'CycleTime']
         for entry in entries:
             for sensor in range(len(self.fns)):
-                self.step_info[sensor][entry] = np.array(self.step_info[sensor][entry], dtype=float)
+                # Do sanity check
+                try:
+                    self.step_info[sensor][entry] = np.array(self.step_info[sensor][entry], dtype=float)
+                except:
+                    print("Erroneous entry found for %s and sensor %i: %s" % (entry, sensor, self.step_info[sensor][entry]))
+                    print("Will set it to -1. Needs to be corrected")
+                    # Correct erroneous value
+                    for i in range(len(self.step_info[sensor][entry])):
+                        try:
+                            float(self.step_info[sensor][entry][i])
+                        except:
+                            self.step_info[sensor][entry][i] = -1
+                    self.step_info[sensor][entry] = np.array(self.step_info[sensor][entry], dtype=float)
         return None
 
     def convert_conc(self):
