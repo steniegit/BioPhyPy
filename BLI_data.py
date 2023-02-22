@@ -158,7 +158,6 @@ class BLI_data:
             self.step_info[sensor]['MolarConcentration_M'] = fact * self.step_info[sensor]['MolarConcentration']
         return None
 
-
     def sanity_check(self):
         '''
         Checks that length of steps for each sensor matches
@@ -232,6 +231,35 @@ class BLI_data:
                 segment -= bl
         return None
 
+    def normalize(self, step=-1, location='start', median_range=20):
+        '''
+        Normalize sensorgrams, e.g. regarding to loading levels
+        which_step: Number of step
+        step: which step to use
+        location: 'start' or 'end'
+        time_step: nth point will be used for averaging
+        '''
+        # If step is not defined, choose first one
+        if step==-1:
+            step = 0
+        if location == 'start':
+            start = 0
+            end = median_range
+        elif location == 'end':
+            start = - median_range
+            end = -1
+        else:
+            print("Please define location with either 'start' or 'end'")
+            return None
+        # Go through sensors and define
+        for sensor in range(len(self.fns)):
+            # Obtain median for selected step and subtract it from whole curve
+            bl = np.median(self.ys[sensor][step][start:end])
+            # Divide for all segments
+            for segment in self.ys[sensor]:
+                segment /= bl
+        return None
+    
     def smooth(self, sensors=[], window_length=21, polyorder=2):
         '''
         Smooth data with Savitzky-Golay filter
@@ -258,7 +286,56 @@ class BLI_data:
                 self.ys[sensor][step] -= self.ys[ref_sensor][step]
         return None
         
+    def extract_values(self, sensors=[], step=0, time=0):
+        '''
+        Extract values for a certain step at time (of that step)
+        sensors: which sensors to include (list of integers)
+                 if not specified, all steps are plotted
+        steps: which step to use
+        time: Time in s, if too large, last point will be used
+        '''
+        # Check steps
+        if len(sensors) == 0:
+            sensors = range(len(self.fns))
+        # Go through sensors and extract values
+        xs, ys = [], []
+        for sensor in sensors:
+            time_array = self.xs[sensor][step] - self.xs[sensor][step][0]
+            pos = np.argmin(np.abs(time_array - time))
+            xs.append(self.xs[sensor][step][pos])
+            ys.append(self.ys[sensor][step][pos])
+        return (xs, ys)
 
+    def merge_steps(self, steps=[0,1], new_step_name='Merged'):
+        '''
+        Merges two subsequent steps into one
+        '''
+        # Sanity check
+        if np.abs(steps[0] - steps[1]) !=1:
+            print("Steps have to be consecutive! Exit")
+            return None
+        # Go through all sensors
+        sensors = range(len(self.fns))
+        for sensor in sensors:
+            joined_xs = np.concatenate((self.xs[sensor][steps[0]], self.xs[sensor][steps[0]]))
+            joined_ys = np.concatenate((self.ys[sensor][steps[0]], self.ys[sensor][steps[0]]))
+            # Replace
+            self.xs[sensor][steps[0]] = joined_xs
+            self.ys[sensor][steps[0]] = joined_ys
+            # Remove the following one
+            del(self.xs[sensor][steps[1]])
+            del(self.ys[sensor][steps[1]])
+            # Adjust step info
+            self.step_info[sensor]['AssayTime'][steps[0]] = self.step_info[sensor]['AssayTime'][steps[0]] + self.step_info[sensor]['AssayTime'][steps[1]]
+            self.step_info[sensor]['ActualTime'][steps[0]] = self.step_info[sensor]['AssayTime'][steps[0]] + self.step_info[sensor]['AssayTime'][steps[1]]
+            for key in self.step_info[sensor].keys():
+                if type(self.step_info[sensor][key]) == list:
+                    del(self.step_info[sensor][key][steps[1]])
+                elif type(self.step_info[sensor][key]) == np.ndarray:
+                    self.step_info[sensor][key] = np.delete(self.step_info[sensor][key], steps[1])
+            self.step_info[sensor]['StepName'][steps[0]]= new_step_name
+        return None
+        
     def plot(self, steps=[], sensors=[], ylim=[], show_step_name=True, legend='', legend_step=-1, ax=None, linestyle='-', alpha=1, abbrev_step_names=False):
         '''
         Plots signal
