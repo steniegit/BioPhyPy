@@ -252,13 +252,16 @@ class BLI_data:
             print("Please define location with either 'start' or 'end'")
             return None
         # Go through sensors and define
+        norm_values = []
         for sensor in range(len(self.fns)):
             # Obtain median for selected step and subtract it from whole curve
             bl = np.median(self.ys[sensor][step][start:end])
+            norm_values.append(bl)
             # Divide for all segments
             for segment in self.ys[sensor]:
                 segment /= bl
-        return None
+        self.norm_values = norm_values
+        return norm_values
     
     def smooth(self, sensors=[], window_length=21, polyorder=2):
         '''
