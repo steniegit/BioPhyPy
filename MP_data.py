@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import scipy.signal as ssi
 from scipy.optimize import curve_fit
+from matplotlib import gridspec
 from .helpers import *
 
 # To do
@@ -316,13 +317,15 @@ class MP_data:
             print("Created fit_table_masses")
         return None
     
-    def plot_histo(self, plot_weights=False, xlim=[0, 2000], ylim=[], ax=None, show_labels=True, contrasts=False, short_labels=False):
+    def plot_histo(self, plot_weights=False, xlim=[0, 2000], ylim=[], ax=None, show_labels=True, contrasts=False, short_labels=False, show_counts=True, counts_pos='right'):
         '''
         Plot histogram of data
         plot_weights: plot weights used for gaussian fits
         xlim: list with lower and upper x limit for plot
         show_label: Shows gaussian paramters for each component 
         contrast: Show contrast instead of masses in kDa
+        show_counts: Print number of binding/unbinding events
+        counts_pos: 'left' or 'right' position for count numbers
         '''
         # Set right quantity based on choice in contrasts
         if contrasts:
@@ -423,10 +426,14 @@ class MP_data:
                 ax.plot(hist_centers, weights * np.max(counts), color='k')
         fig.tight_layout()
         # Get axis dimension
-        x_border = ax.get_xlim()[1]
-        y_border = ax.get_ylim()[1]
+        x_borders = ax.get_xlim()
+        y_borders = ax.get_ylim()
         # Print number of counts
-        ax.text(x_border*.99, y_border*.99, "Total counts: %i\nBinding: %.0f%%\nUnbinding: %.0f%%" % (self.n_counts, self.n_binding/self.n_counts*100, self.n_unbinding/self.n_counts*100), va='top', ha='right')
+        if show_counts:
+            if counts_pos == 'left':
+                ax.text(x_borders[0] + 0.01*(x_borders[1] - x_borders[0]), y_borders[1]*.99, "Total counts: %i\nBinding: %.0f%%\nUnbinding: %.0f%%" % (self.n_counts, self.n_binding/self.n_counts*100, self.n_unbinding/self.n_counts*100), va='top', ha='left')
+            elif counts_pos == 'right':
+                ax.text(x_borders[1]*.99, y_borders[1]*.99, "Total counts: %i\nBinding: %.0f%%\nUnbinding: %.0f%%" % (self.n_counts, self.n_binding/self.n_counts*100, self.n_unbinding/self.n_counts*100), va='top', ha='right')
         return fig, ax
     
     def fit_histo(self, xlim=[], guess_pos=[], tol=100, tol_contrasts = 0.05, max_width=100, max_width_contrasts=0.005, weighted=False, weighted_width=200, weighted_width_contrasts=0.005, contrasts=False, cutoff=0, fit_points=1000):
@@ -529,3 +536,34 @@ class MP_data:
         # Create fit table
         self.create_fit_table()
         return None
+
+def MultipleHisto(MP_list=[], markers=[], param_dict = {'xlim': [0, 2000], 'show_counts': False, 'short_labels': True}):
+    '''
+    Function to plot multiple histograms
+    MP_list: List MP_data handles
+    markers: dashed lines to mark positions
+    markers_text: 
+    param_dict: Dictionary with parameters for plot_histo
+    '''
+    # Check that all members of MP_list are actually MP_Data
+    for mp_data in MP_list:
+        if type(mp_data) != MP_data:
+            print("%s is not MP_data! Exiting" % mp_data)
+            print(type(mp_data))
+            return None
+    # Create grid for subplots and figure
+    gs = gridspec.GridSpec(len(MP_list), 1,
+                           wspace=0.0, hspace=0.0, top=0.95, bottom=0.15, left=0.17, right=0.845) 
+    #fig, axs = plt.subplots(len(MP_list))
+    fig = plt.figure()
+    # Cycle through list and plot
+    axs = []
+    for i in range(len(MP_list)):
+        ax = plt.subplot(gs[i, 0])
+        axs.append(ax)
+        MP_list[i].plot_histo(ax=ax, **param_dict)
+    # Remove all but the last xtick labels
+    for ax in axs[:-1]:
+        ax.set_xticklabels([])
+    return fig, axs
+        
