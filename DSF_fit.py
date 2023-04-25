@@ -115,7 +115,7 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
                 caps is a list of integers with the capillary numbers+1
 
             window: temperature window in which to extract data
-            which: 'Ratio', '350nm', '330nm' or 'Scattering'
+            which: 'Ratio', '350nm', '330nm' or 'Scattering', also 'Ratio (Unfolding)' etc.
             load_fit: Try to load previous fit parameters
             outliers: take out these columns
         Returns: None
@@ -156,7 +156,8 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             dat = dat.iloc[:,[0,1]+self.caps]        
 
         # Find first index with numbers (above is header)
-        if which in ['Ratio', '350nm', '330nm', 'Scattering']:
+        if which in ['Ratio', '350nm', '330nm', 'Scattering',
+                     'Ratio (Unfolding)', '350nm (Unfolding)', '330nm (Unfolding)', 'Scattering (Unfolding)']:
             first_row = int(np.argwhere(list(dat.iloc[:, 0] == 'Time [s]'))) + 1
             first_column = 1
         elif which == 'RFU':
@@ -193,7 +194,8 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         self.fluo = np.array(dat.iloc[ind_lower:ind_upper, sort_fluo]).astype('float')
         # In case there are spaces in self.which, remove them now
         self.which = self.which.replace(' ','')
-        if which in ['Ratio', '350nm', '330nm', 'Scattering']:
+        if which in ['Ratio', '350nm', '330nm', 'Scattering',
+                     'Ratio (Unfolding)', '350nm (Unfolding)', '330nm (Unfolding)', 'Scattering (Unfolding)']:
             # Extract sample IDs
             self.sample_ID = np.array(dat.iloc[first_row-3, sort_fluo])
             # Extract sample comments

@@ -12,4 +12,4 @@ from .IR_data import OpusData
 from .BLI_data import BLI_data
 # DLS fitting
 from .DSF_fit import DSF_binding
-from .dsf_simulations_helpers import *
+from .dsf_simulation_helpers import *
