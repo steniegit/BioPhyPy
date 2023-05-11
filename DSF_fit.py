@@ -2266,7 +2266,7 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
                 temp_temps.append(self.tms[i])
                 ax.plot(self.temps, self.fluo[:, i], alpha=self.plot_alpha, lw=self.plot_lw, color=color)
                 ax2.plot(self.temps, self.fluo_deriv[:, i]*fact, alpha=self.plot_alpha, lw=self.plot_lw, color=color)
-                print(temp_temps)
+                #print(temp_temps)
                 # Set temps back to empty list
                 temp_temps = []
             # If sample_comment was not used before use new color
