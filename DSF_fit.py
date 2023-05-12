@@ -71,8 +71,8 @@ No warranty whatsoever\n\n\
 If you have questions please contact me:\n\
 stephan.niebling@embl-hamburg.de\n\n\
 Please cite both the original on Thermofluor data analysis and my work:\n\
-Bai, N.; Roder, H.; Dickson, A. & Karanicolas, J. Scientific Reports, 9, 2019.\n\
-Niebling et al. (unpublished)\n\
+Bai, N.; Roder, H.; Dickson, A. & Karanicolas, Scientific Reports (2019), 9, 1-15.\n\
+Niebling, S. et al., Scientific Reports (2021), 11, 1-17.\n\
 Please also acknowledge the SPC core facility at EMBL Hamburg\n")
 
     def __init__(self, cp=0, folder='./'):
