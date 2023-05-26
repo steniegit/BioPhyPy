@@ -3,7 +3,7 @@
 This library contains modules for the analysis of different biophysical techniques. Most of the them are experimental. No warranty whatsoever.
 DSF_fit, MST_data and MP_data are available as user-friendly webservers: https://spc.embl-hamburg.de/
 
-**Please cite the respective publications and acknowledge this repository when using it for a publication:**
+**Please cite the respective publications and acknowledge this repository and the SPC facility at EMBL Hamburg when using it for a publication:**
 * DSF_fit, MST_data
   * Burastero, O., Niebling, S., Defelipe, L. A., Günther, C., Struve, A., & Garcia Alai, M. M. (2021). [eSPC: an online data-analysis platform for molecular biophysics.](http://scripts.iucr.org/cgi-bin/paper?S2059798321008998) Acta Crystallographica Section D: Structural Biology, 77(10).
 * DSF_fit
