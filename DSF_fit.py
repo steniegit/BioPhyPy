@@ -2244,7 +2244,7 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             self.calc_fluo_deriv()
             self.tms_from_derivatives()
         # Define color map
-        cmap = iter(plt.cm.jet(np.linspace(0, 1, 1+len(np.unique(self.concs)))))
+        cmap = iter(plt.cm.viridis(np.linspace(0, 1, 1+len(np.unique(self.concs)))))
         # ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), handles=lh, title="Ligand concentration")
         ax.set_xlim([self.temps[0], self.temps[-1]])
         # Plot
@@ -2319,7 +2319,7 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
 
         # Set up color bar
         normalize = mcolors.LogNorm(vmin=np.min(self.concs[self.concs > 0]), vmax=np.max(self.concs))  # Or Normalize
-        scalarmappaple = cm.ScalarMappable(norm=normalize, cmap=plt.cm.jet)
+        scalarmappaple = cm.ScalarMappable(norm=normalize, cmap=plt.cm.viridis)
         scalarmappaple.set_array(self.concs[self.concs > 0])
         if legend:
             if legend_out:
