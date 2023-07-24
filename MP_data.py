@@ -317,7 +317,7 @@ class MP_data:
             print("Created fit_table_masses")
         return None
     
-    def plot_histo(self, plot_weights=False, xlim=[0, 2000], ylim=[], ax=None, show_labels=True, contrasts=False, short_labels=False, show_counts=True, counts_pos='right'):
+    def plot_histo(self, plot_weights=False, xlim=[0, 2000], ylim=[], ax=None, show_labels=True, contrasts=False, short_labels=False, show_counts=True, counts_pos='right', hist_fc='', hist_ec='', hist_label=''):
         '''
         Plot histogram of data
         plot_weights: plot weights used for gaussian fits
@@ -360,8 +360,19 @@ class MP_data:
         else:
             ax.set_xlabel('Mass / kDa')
         ax.set_ylabel('Counts')
+        # Compile plot parameters in dictionary
+        hist_params ={}
+        if len(hist_ec) > 0:
+            hist_params['ec'] =  hist_ec
+        if len(hist_fc) > 0:
+            hist_params['ec'] =  hist_fc
+        if len(hist_label) > 0:
+            hist_params['label'] = hist_label
         # Plot histogram
-        ax.bar(centers, counts, alpha=.5, width=binwidth)
+        if len(hist_label) > 0:
+            ax.bar(centers, counts, alpha=.5, width=binwidth, label=hist_label)
+        else:
+            ax.bar(centers, counts, alpha=.5, width=binwidth)
 
         # Check and set xlim
         # Sanity check for xlim if contrasts are used
