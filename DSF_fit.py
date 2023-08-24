@@ -218,7 +218,7 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         self.inds_in = np.ones(self.fluo.shape[1])==1
         return None
 
-    def load_thermofluor(self, fn='', concs=[], caps=[], window=[], outliers=[], load_fit=False):
+    def load_thermofluor(self, fn='', fn_concs='', concs=[], caps=[], window=[], outliers=[], load_fit=False):
         '''
         Load thermofluor data from ThermoFisher QuantStudio 3
 
