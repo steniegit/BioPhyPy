@@ -103,31 +103,18 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         matplotlib.rcParams.update({'font.size': self.plot_fs})
         return None
 
-    ## Loading functions
-    def load_xlsx(self, fn='', fn_concs='', concs=[], caps=[], window=[], which='Ratio', load_fit=True,outliers=[]):
+    def get_concs(self, concs, fn_concs):
         '''
-        Load nanotemper processed xlsx and extract data
+        This helper function populates the self.concs of the class instance
+        Ligand concentrations in the array concs have priority
+        Otherwise it reads concentrations from fn_concs or tries to
+        obtain them from a generic file called sample_concs.txt
 
         Args:
-            fn: filename
-            concs: ligand concentrations
-            caps: if length > 1: select these columns 
-                caps is a list of integers with the capillary numbers+1
-
-            window: temperature window in which to extract data
-            which: 'Ratio', '350nm', '330nm' or 'Scattering', also 'Ratio (Unfolding)' etc.
-            load_fit: Try to load previous fit parameters
-            outliers: take out these columns
+             concs:    ligand concentrations (in M)
+             fn_concs: file name with ligand concentrations
         Returns: None
-
         '''
-        
-        # Get folder and filename
-        self.fn = os.path.basename(fn)
-        self.folder = os.path.dirname(fn)
-
-        #Get the capillary numbers
-        self.caps = caps
 
         # Get ligand concentrations
         if len(concs) > 0:
@@ -142,6 +129,37 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
                 print("Neither concentrations (concs) nor concentration file (fn_concs) was given!")
                 return None
             print("Loaded concentrations from %s/sample_concs.txt" % self.folder)
+        return None
+
+    ## Loading functions
+    def load_xlsx(self, fn='', fn_concs='', concs=[], caps=[], window=[], which='Ratio', load_fit=True,outliers=[]):
+        '''
+        Load nanotemper processed xlsx and extract data
+
+        Args:
+            fn: filename
+            fn_concs: file name with ligand concentrations
+            concs: ligand concentrations (in M)
+            caps: if length > 1: select these columns 
+                caps is a list of integers with the capillary numbers+1
+
+            window: temperature window in which to extract data
+            which: 'Ratio', '350nm', '330nm' or 'Scattering', also 'Ratio (Unfolding)' etc.
+            load_fit: Try to load previous fit parameters
+            outliers: take out these columns
+        Returns: None
+
+        '''
+        
+        # Get folder and filename
+        self.fn = os.path.basename(fn)
+        self.folder = os.path.dirname(fn)
+        #Get the capillary numbers
+        self.caps = caps
+
+        # Load ligand concentrations into instance
+        self.get_concs(concs, fn_concs)
+        
         # Temperature window to extract data
         self.window = window
         # Which data to use
@@ -242,19 +260,9 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         #Get the capillary numbers
         self.caps = caps
 
-        # Get ligand concentrations
-        if len(concs) > 0:
-            self.concs = concs
-        elif len(fn_concs) > 0:
-            self.concs = np.genfromtxt(fn_concs)
-        else:
-            # Try to load from folder
-            try:
-                self.concs = np.genfromtxt(self.folder + '/sample_concs.txt')
-            except:
-                print("Neither concentrations (concs) nor concentration file (fn_concs) was given!")
-                return None
-            print("Loaded concentrations from %s/sample_concs.txt" % self.folder)
+        # Load ligand concentrations into instance
+        self.get_concs(concs, fn_concs)
+
         # Temperature window to extract data
         self.window = window
         # Thermofluor data
