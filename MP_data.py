@@ -382,6 +382,7 @@ class MP_data:
             if np.max(xlim) > 1:
                 # Contrast cannot be beyond 2
                 xlim = [np.min(centers), np.max(centers)]
+                xlim = [-.1, 0.05] 
             ax.set_xlim(xlim)                    
             # Invert xaxis
             ax.invert_xaxis()
@@ -447,7 +448,8 @@ class MP_data:
                 ax.text(x_borders[1]*.99, y_borders[1]*.99, "Total counts: %i\nBinding: %.0f%%\nUnbinding: %.0f%%" % (self.n_counts, self.n_binding/self.n_counts*100, self.n_unbinding/self.n_counts*100), va='top', ha='right')
         return fig, ax
     
-    def fit_histo(self, xlim=[], guess_pos=[], tol=100, tol_contrasts = 0.05, max_width=100, max_width_contrasts=0.005, weighted=False, weighted_width=200, weighted_width_contrasts=0.005, contrasts=False, cutoff=0, fit_points=1000):
+    def fit_histo(self, xlim=[], guess_pos=[], tol=None, max_width=None, weighted=False, weighted_width=None, contrasts=False, cutoff=0, fit_points=1000):
+                  #tol=100, tol_contrasts = 0.05, max_width=100, max_width_contrasts=0.005, weighted=False, weighted_width=200, weighted_width_contrasts=0.005, contrasts=False, cutoff=0, fit_points=1000):
         '''
         Fit gaussians to histogram
         xlim: fit range
@@ -464,14 +466,29 @@ class MP_data:
         if contrasts:
             centers = self.hist_centers_contrasts
             counts = self.hist_counts_contrasts
-            # Use tolerance for contrasts
-            tol = tol_contrasts
-            max_width = max_width_contrasts
-            weighted_width = weighted_width_contrasts
+            # Set default values if not specified
+            if tol==None:
+                tol = 0.005
+            if max_width==None:
+                max_width = 0.005
+            if weighted_width==None:
+                weighted_width = 0.005
+            ## Use tolerance for contrasts
+            #tol = tol_contrasts
+            #max_width = max_width_contrasts
+            #weighted_width = weighted_width_contrasts
+        # Otherwise if masses are fitted
         else:
             # Load data for masses/kDa
             centers = self.hist_centers
             counts = self.hist_counts
+            # Set default values if not specified
+            if tol==None:
+                tol = 100
+            if max_width==None:
+                max_width = 100
+            if weighted_width==None:
+                weighted_width = 200
         # Determine indices for xlim
         if len(xlim) == 0:
             ind_range = [0, len(centers)]
@@ -483,7 +500,8 @@ class MP_data:
             ind_range = np.sort(ind_range)
         # Adjust centers and contrasts
         centers = centers[ind_range[0]:ind_range[1]]
-        counts  = counts[ind_range[0]:ind_range[1]] 
+        counts  = counts[ind_range[0]:ind_range[1]]
+        print("Number of points to be fitted %i" % len(centers))
         # If no guess are taken, only fit one gaussian and use maximum in histogram as guess
         if len(guess_pos) == 0:
             print("No guess positions given (guess_pos)! Will try to find maxima.")
