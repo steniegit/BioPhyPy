@@ -22,6 +22,40 @@ DSF_fit, MST_data and MP_data are available as user-friendly webservers: https:/
  * Visualization of mass photometry data
  * Generation of histograms and gaussian fitting
 
+#### Jupyter notebook example
+```python
+%matplotlib tk
+import sys
+sys.path.append("../")
+# Load python class
+from libspec import MP_data
+
+# File folder, adjust this one
+fn = './experiments/001_mpdata.h5'
+
+# Parameters to search for gaussians
+guess_pos = [60, 80]
+tol = 20
+max_width = 10
+
+# Load eventsFitted
+dataset = MP_data(fn=fn)
+# Create histogram
+dataset.create_histo(bin_width=4)
+# Fit bands in mass space
+dataset.fit_histo(guess_pos=guess_pos, tol=tol, xlim=[-100,1000], max_width=max_width)
+
+# Define fontsize for plot
+fs = 18
+# Get fonts bigger
+plt.rcParams.update({'font.size': fs})
+
+# Plot data
+fig, ax = dataset.plot_histo(xlim=[-500, 1000])
+# Save figure
+fig.savefig(fn.replace('.h5','.pdf'))
+```
+
 ### MST_data
 * Visualize data and fit affinities
 
