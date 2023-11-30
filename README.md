@@ -55,6 +55,7 @@ fig, ax = dataset.plot_histo(xlim=[-500, 1000])
 # Save figure
 fig.savefig(fn.replace('.h5','.pdf'))
 ```
+<img src="./readme_files/mp_plot.png" width=50% height=50%>
 
 ### MST_data
 * Visualize data and fit affinities
