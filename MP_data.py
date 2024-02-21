@@ -24,7 +24,12 @@ class MP_data:
         if fn != '':
             data = h5py.File(self.fn, 'r')
             # Initialize variables, Squeeze necessary for older datasets
-            self.masses_kDa = np.array(data['masses_kDa']).squeeze()
+            if 'masses_kDa' in data.keys():
+                self.masses_kDa = np.array(data['masses_kDa']).squeeze()
+            elif 'calibrated_values' in data.keys():
+                self.masses_kDa = np.array(data['calibrated_values']).squeeze()
+            else:
+                print("Could neither find calibrated_values nor masses_kDa! Will only load contrasts.")
             self.contrasts = np.array(data['contrasts']).squeeze()
             # Get number of counts
             self.n_counts = len(self.contrasts)
