@@ -8,6 +8,7 @@ import pandas as pd
 import scipy.signal as ssi
 from scipy.optimize import curve_fit
 from matplotlib import gridspec
+from matplotlib.patches import Circle
 from .helpers import *
 
 # To do
@@ -18,8 +19,10 @@ class MP_data:
     '''
     Simple class to load refeyn eventsFitted.h5 files from Refeyn mass photometer
     '''
-    def __init__(self, fn=''):
+    def __init__(self, fn='', mp_fn=''):
         self.fn = fn
+        # Filename for movie, this is optional
+        self.mp_fn = mp_fn
         # Load data
         if fn != '':
             data = h5py.File(self.fn, 'r')
@@ -49,6 +52,62 @@ class MP_data:
         self.fit_type  = 'None'
         # Mock table
         self.fit_table = pd.DataFrame()
+        return None
+
+    def analyze_movie(self, frame='most', threshold_big=1000, ratiometric_size=10, frame_range=2):
+        '''
+        It is optional to use the original movie file
+        This can be used to show an inlet in the plots
+        frame :        frame with 'most' counts, 'largest' counts, or frame number (int)
+        threshold_big: threshold for frame='largest'
+        frame_range:   Number of frames around target frame are used for plotting events
+        '''
+        # Check if filename is specified
+        if self.mp_fn == '':
+            print("No mp_fn defined!")
+            return None
+        # Check if file exists
+        if not os.path.isfile(self.mp_fn):
+            print("Could not find file %s" % self.mp_fn)
+            return None
+        # Load video file
+        video = h5py.File(self.mp_fn)
+        video = np.array(video['movie']['frame']).astype('int16')
+        # Change sign
+        video = video[:]*-1
+        # Load fitted events to obtain more parameters
+        data = h5py.File(self.fn, 'r')
+        # Create dataframe
+        events = pd.DataFrame({'frame_ind': data['frame_indices'], 
+                               'contrasts': data['contrasts'], 
+                               'kDa': self.masses_kDa, # used to be  test['masses_kDa']
+                               'x_coords': data['x_coords'], 
+                               'y_coords': data['y_coords']})
+        self.events_temp = events
+        # Detect frame with most or largest masses
+        frames, counts, big_counts = [], [], []
+        frame_nos = np.unique(events['frame_ind'])
+        for frame_no in frame_nos:
+            frames.append(frame_no)
+            temp_events = events[events['frame_ind']==frame_no]
+            counts.append(len(temp_events))
+            # Only show big particles
+            temp_events = temp_events[temp_events['kDa'] > threshold_big]
+            big_counts.append(len(temp_events))
+        # Select frame number
+        if frame == 'most':
+            self.frame_no = frames[np.argmax(counts)]
+        elif frame == 'largest':
+            self.frame_no = frames[np.argmax(big_counts)]
+        else:
+            self.frame_no = frame
+        self.frame_no = int(self.frame_no)
+        # Obtain ratiometric contrast
+        self.dra = np.mean(video[self.frame_no+1:self.frame_no+1+ratiometric_size//2], axis=0) / np.mean(video[self.frame_no-ratiometric_size//2:self.frame_no], axis=0) - 1
+        # Only obtain events in frame range
+        print(self.frame_no)
+        self.events = events[events['frame_ind'].between(self.frame_no-frame_range, self.frame_no+frame_range)]
+        print(self.events)
         return None
 
     def write_parameters(self, fn=''):
@@ -451,6 +510,17 @@ class MP_data:
                 ax.text(x_borders[0] + 0.01*(x_borders[1] - x_borders[0]), y_borders[1]*.99, "Total counts: %i\nBinding: %.0f%%\nUnbinding: %.0f%%" % (self.n_counts, self.n_binding/self.n_counts*100, self.n_unbinding/self.n_counts*100), va='top', ha='left')
             elif counts_pos == 'right':
                 ax.text(x_borders[1]*.99, y_borders[1]*.99, "Total counts: %i\nBinding: %.0f%%\nUnbinding: %.0f%%" % (self.n_counts, self.n_binding/self.n_counts*100, self.n_unbinding/self.n_counts*100), va='top', ha='right')
+        # If movie file is specified, create inlet with frame picture
+        # # Draw image
+        axin = ax.inset_axes([250,0,300,200],transform=ax.transData, alpha=.5)    # create new inset axes in data coordinates
+        axin.imshow(self.dra)
+        axin.axis('off')
+        # Create circles
+        for event in self.events.iterrows():
+            event = event[1]
+            circ = Circle((int(event['x_coords']), int(event['y_coords'])), 5, fc='None', ec='red', lw=2)
+            axin.add_patch(circ)
+            axin.text(int(event['x_coords']), int(event['y_coords'])+5, int(event['kDa']), ha='center', va='top', fontsize=6)
         return fig, ax
     
     def fit_histo(self, xlim=[], guess_pos=[], tol=None, max_width=None, weighted=False, weighted_width=None, contrasts=False, cutoff=0, fit_points=1000):
