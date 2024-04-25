@@ -54,7 +54,7 @@ class MP_data:
         self.fit_table = pd.DataFrame()
         return None
 
-    def analyze_movie(self, frame='most', threshold_big=1000, ratiometric_size=10, frame_range=2):
+    def analyze_movie(self, frame='most', threshold_big=1000, ratiometric_size=10, frame_range=2, image_scale=1, image_xoffset=0, image_yoffset=0):
         '''
         It is optional to use the original movie file
         This can be used to show an inlet in the plots
@@ -70,6 +70,10 @@ class MP_data:
         if not os.path.isfile(self.mp_fn):
             print("Could not find file %s" % self.mp_fn)
             return None
+        # Save parameters in instance
+        self.image_scale = image_scale
+        self.image_xoffset = image_xoffset
+        self.image_yoffset = image_yoffset
         # Load video file
         video = h5py.File(self.mp_fn)
         video = np.array(video['movie']['frame']).astype('int16')
@@ -511,8 +515,27 @@ class MP_data:
             elif counts_pos == 'right':
                 ax.text(x_borders[1]*.99, y_borders[1]*.99, "Total counts: %i\nBinding: %.0f%%\nUnbinding: %.0f%%" % (self.n_counts, self.n_binding/self.n_counts*100, self.n_unbinding/self.n_counts*100), va='top', ha='right')
         # If movie file is specified, create inlet with frame picture
+        # Calculate coordinates
+        ylims = ax.get_ylim()
+        xlims = ax.get_xlim()
+        x_space = xlims[1] - xlims[0]
+        y_space = ylims[1] - ylims[0]
+        # If counts are shown use larger space
+        # 50% of xspace and 50% of yspace
+        if show_counts:
+            # Use 40% of space
+            x0 = xlims[0] + .6*x_space + self.image_xoffset
+            x_size = .9*.4*x_space * self.image_scale
+            y0 = ylims[0] + 0.5*.6*y_space + self.image_yoffset
+            y_size = .9*.4*y_space * self.image_scale
+        # Otherwise use 60% of y-space
+        else:
+            x0 = xlims[0] + .4*x_space + self.image_xoffset
+            x_size = .97*.6*x_space * self.image_scale
+            y0 = ylims[0] + .4*y_space + self.image_yoffset
+            y_size = .9*.6*y_space * self.image_scale
         # # Draw image
-        axin = ax.inset_axes([250,0,300,200],transform=ax.transData, alpha=.5)    # create new inset axes in data coordinates
+        axin = ax.inset_axes([x0, y0, x_size, y_size],transform=ax.transData, alpha=.5)    # create new inset axes in data coordinates
         axin.imshow(self.dra)
         axin.axis('off')
         # Create circles
