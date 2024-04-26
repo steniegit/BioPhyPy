@@ -9,6 +9,7 @@ import scipy.signal as ssi
 from scipy.optimize import curve_fit
 from matplotlib import gridspec
 from matplotlib.patches import Circle
+import matplotlib.colors as colors
 from .helpers import *
 
 # To do
@@ -23,6 +24,8 @@ class MP_data:
         self.fn = fn
         # Filename for movie, this is optional
         self.mp_fn = mp_fn
+        # Set show_image flag
+        self.show_image = False
         # Load data
         if fn != '':
             data = h5py.File(self.fn, 'r')
@@ -108,10 +111,14 @@ class MP_data:
         self.frame_no = int(self.frame_no)
         # Obtain ratiometric contrast
         self.dra = np.mean(video[self.frame_no+1:self.frame_no+1+ratiometric_size//2], axis=0) / np.mean(video[self.frame_no-ratiometric_size//2:self.frame_no], axis=0) - 1
+        # Center
+        self.dra -= np.median(self.dra)
         # Only obtain events in frame range
         print(self.frame_no)
         self.events = events[events['frame_ind'].between(self.frame_no-frame_range, self.frame_no+frame_range)]
         print(self.events)
+        # Set switch for plot_histo functions
+        self.show_image = True
         return None
 
     def write_parameters(self, fn=''):
@@ -514,36 +521,44 @@ class MP_data:
                 ax.text(x_borders[0] + 0.01*(x_borders[1] - x_borders[0]), y_borders[1]*.99, "Total counts: %i\nBinding: %.0f%%\nUnbinding: %.0f%%" % (self.n_counts, self.n_binding/self.n_counts*100, self.n_unbinding/self.n_counts*100), va='top', ha='left')
             elif counts_pos == 'right':
                 ax.text(x_borders[1]*.99, y_borders[1]*.99, "Total counts: %i\nBinding: %.0f%%\nUnbinding: %.0f%%" % (self.n_counts, self.n_binding/self.n_counts*100, self.n_unbinding/self.n_counts*100), va='top', ha='right')
-        # If movie file is specified, create inlet with frame picture
-        # Calculate coordinates
-        ylims = ax.get_ylim()
-        xlims = ax.get_xlim()
-        x_space = xlims[1] - xlims[0]
-        y_space = ylims[1] - ylims[0]
-        # If counts are shown use larger space
-        # 50% of xspace and 50% of yspace
-        if show_counts:
-            # Use 40% of space
-            x0 = xlims[0] + .6*x_space + self.image_xoffset
-            x_size = .9*.4*x_space * self.image_scale
-            y0 = ylims[0] + 0.5*.6*y_space + self.image_yoffset
-            y_size = .9*.4*y_space * self.image_scale
-        # Otherwise use 60% of y-space
-        else:
-            x0 = xlims[0] + .4*x_space + self.image_xoffset
-            x_size = .97*.6*x_space * self.image_scale
-            y0 = ylims[0] + .4*y_space + self.image_yoffset
-            y_size = .9*.6*y_space * self.image_scale
-        # # Draw image
-        axin = ax.inset_axes([x0, y0, x_size, y_size],transform=ax.transData, alpha=.5)    # create new inset axes in data coordinates
-        axin.imshow(self.dra)
-        axin.axis('off')
-        # Create circles
-        for event in self.events.iterrows():
-            event = event[1]
-            circ = Circle((int(event['x_coords']), int(event['y_coords'])), 5, fc='None', ec='red', lw=2)
-            axin.add_patch(circ)
-            axin.text(int(event['x_coords']), int(event['y_coords'])+5, int(event['kDa']), ha='center', va='top', fontsize=6)
+        if self.show_image:
+            # If movie file is specified, create inlet with frame picture
+            # Calculate coordinates
+            ylims = ax.get_ylim()
+            xlims = ax.get_xlim()
+            x_space = xlims[1] - xlims[0]
+            y_space = ylims[1] - ylims[0]
+            # If counts are shown use larger space
+            # 50% of xspace and 50% of yspace
+            if show_counts:
+                # Use 40% of space
+                x0 = xlims[0] + .6*x_space + self.image_xoffset
+                x_size = .9*.4*x_space * self.image_scale
+                y0 = ylims[0] + 0.5*.6*y_space + self.image_yoffset
+                y_size = .9*.4*y_space * self.image_scale
+            # Otherwise use 60% of y-space
+            else:
+                x0 = xlims[0] + .4*x_space + self.image_xoffset
+                x_size = .97*.6*x_space * self.image_scale
+                y0 = ylims[0] + .4*y_space + self.image_yoffset
+                y_size = .9*.6*y_space * self.image_scale
+            # # Draw image
+            axin = ax.inset_axes([x0, y0, x_size, y_size],transform=ax.transData, alpha=.5)    # create new inset axes in data coordinates
+            # Determine limits for plot
+            im_min = np.min(self.dra)
+            im_max = np.max(self.dra)
+            # Take arithmetic middle
+            thresh = np.sqrt(np.abs(im_min)*im_max)
+            # This defines how big the threshold for the logarithmic plot is around 0
+            linthresh = thresh / 10
+            axin.imshow(self.dra, norm=colors.SymLogNorm(linthresh=0.02, base=10, linscale=1, vmin=-thresh, vmax=thresh))
+            axin.axis('off')
+            # Create circles
+            for event in self.events.iterrows():
+                event = event[1]
+                circ = Circle((int(event['x_coords']), int(event['y_coords'])), 5, fc='None', ec='red', lw=2)
+                axin.add_patch(circ)
+                axin.text(int(event['x_coords']), int(event['y_coords'])+5, int(event['kDa']), ha='center', va='top', fontsize=6)
         return fig, ax
     
     def fit_histo(self, xlim=[], guess_pos=[], tol=None, max_width=None, weighted=False, weighted_width=None, contrasts=False, cutoff=0, fit_points=1000):
