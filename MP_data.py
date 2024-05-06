@@ -556,7 +556,15 @@ class MP_data:
             # Create circles
             for event in self.events.iterrows():
                 event = event[1]
-                circ = Circle((int(event['x_coords']), int(event['y_coords'])), 5, fc='None', ec='red', lw=2)
+                if event['frame_ind'] == self.frame_no:
+                    alpha = 1
+                elif np.abs(event['frame_ind'] - self.frame_no) == 1:
+                    alpha = 0.5
+                elif np.abs(event['frame_ind'] - self.frame_no) == 2:
+                    alpha = 0.25
+                else:
+                    alpha= 0.1
+                circ = Circle((int(event['x_coords']), int(event['y_coords'])), 5, fc='None', ec='red', lw=2, alpha=alpha)
                 axin.add_patch(circ)
                 axin.text(int(event['x_coords']), int(event['y_coords'])+5, int(event['kDa']), ha='center', va='top', fontsize=6)
         return fig, ax
