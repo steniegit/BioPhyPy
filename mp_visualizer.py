@@ -8,6 +8,10 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from matplotlib.patches import Circle
 import time
+import sys, glob, os
+sys.path.append("../")
+from libspec import MP_data
+from tempfile import NamedTemporaryFile
 
 # Initial parameters
 movie = False
@@ -27,6 +31,8 @@ st.sidebar.header("Play movie")
 # This gives you an extremely simple interaction model.
 slider = st.sidebar.empty() #slider("Level of detail", 2, 20, 10, 1)
 most_counts = st.sidebar.button("Jump to frame with most counts")
+if most_counts:
+    print("Test")
 
 # Non-interactive elements return a placeholder to their location
 # in the app. Here we're storing progress_bar to update it later.
@@ -39,6 +45,7 @@ col1, = st.columns(1)
 # for them using st.empty()
 frame_text = st.sidebar.empty()
 image = col1.empty()
+image_hist = col1.empty()
 table = col1.empty()
 # Histogram
 hist = col1.empty()
@@ -119,10 +126,10 @@ def create_histogram(events, bin_width=4):
     nbins = int((window[1] - window[0]) // bin_width)
     # Create histogram
     hist_counts, hist_bins = np.histogram(events['kDa'], range=window, bins=nbins)
-    return hist_counts, hist_bins
+    return hist_counts, hist_bins, bin_width
 
 @st.cache_data
-def create_image(dra):
+def create_image(dra, events_frame, frame_num):
     # Determine limits for plot
     im_min = np.min(dra)
     im_max = np.max(dra)
@@ -151,26 +158,58 @@ def create_image(dra):
         ax.add_patch(circ)
         ax.text(int(event['x_coords']), int(event['y_coords'])+5, int(event['kDa']), ha='center', va='top', fontsize=6)
     return fig
-    
-# Read data
-video, events, data_loaded = read_data(fn_movie, fn_events)
-print(video)
-hist_counts, hist_bins = create_histogram(events)
 
-# Extract one frame
-if data_loaded:
-    frame_num = slider.slider("Frame number", 1, video.shape[0]+1, 1, 1)
-    # Obtain dra and frame_events
-    dra, events_frame = create_dra(frame_num, video, events, frame_range=frame_range)
-    # Delete previous image
-    image.empty()
-    # Create image
-    fig = create_image(dra)
-    # Plot it 
-    #image.plotly_chart(fig)
-    image.pyplot(fig)
-    # And show events
-    table.dataframe(events_frame)
+@st.cache_data
+def plot_histogram(hist_counts, hist_bins, bin_width, events_frame, frame_num):
+    # Plot one frame in image
+    #fig = px.imshow(dra)
+    # Calculate centers
+    hist_centers = 0.5 * (hist_bins[:-1] + hist_bins[1:])
+    # Initialize figure
+    fig = plt.figure()
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.bar(hist_centers, hist_counts, width=bin_width)
+    return fig
+
+@st.cache_data
+def load_data(fn_events, fn_movie='', frame_range=2):
+    # Load data
+    with NamedTemporaryFile(dir='.', suffix='.mpr') as f:
+        f.write(fn_events.getbuffer())
+        with NamedTemporaryFile(dir='.', suffix='.h5') as f2:
+            f2.write(fn_movie.getbuffer())
+            dataset = load_data(fn_events=f.name, fn_movie=f2.name)
+    return dataset
+
+dataset = load_data(fn_events, fn_movie)
+fig, ax = plt.subplots(1)
+dataset.plot_histo(ax=ax)
+image.pyplot(fig)
+
+# # Read data
+# video, events, data_loaded = read_data(fn_movie, fn_events)
+# print(video)
+# hist_counts, hist_bins, bin_width = create_histogram(events)
+
+# # Extract one frame
+# if data_loaded:
+#     frame_num = slider.slider("Frame number", 1, video.shape[0]+1, 1, 1)
+#     # Obtain dra and frame_events
+#     dra, events_frame = create_dra(frame_num, video, events, frame_range=frame_range)
+#     # Delete previous image
+#     image.empty()
+#     # Create image
+#     #fig = create_image(dra, events_frame, frame_num)
+#     # Create histogram
+#     #hist_counts, hist_bins, bin_width = create_histogram(events)
+#     # Create histo plot
+#     # fig_hist = plot_histogram(hist_counts, hist_bins, bin_width, events_frame, frame_num)
+#     # Plot it 
+#     #image.plotly_chart(fig)
+#     #image.pyplot(fig)
+#     #image_hist.pyplot(fig_hist)
+#     # And show events
+#     #table.dataframe(events_frame)
 
 # m, n, s = 960, 640, 400
 # x = np.linspace(-m / s, m / s, num=m).reshape((1, m))

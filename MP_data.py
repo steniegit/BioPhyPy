@@ -57,12 +57,12 @@ class MP_data:
         self.fit_table = pd.DataFrame()
         return None
 
-    def analyze_movie(self, frame='most', threshold_big=1000, ratiometric_size=10, frame_range=2, image_scale=1, image_xoffset=0, image_yoffset=0):
+    def analyze_movie(self, frame='most', threshold=0, ratiometric_size=10, frame_range=2, image_scale=1, image_xoffset=0, image_yoffset=0):
         '''
         It is optional to use the original movie file
         This can be used to show an inlet in the plots
-        frame :        frame with 'most' counts, 'largest' counts, or frame number (int)
-        threshold_big: threshold for frame='largest'
+        frame :        frame with 'most' counts or frame number (int)
+        threshold: threshold for frame='most'
         frame_range:   Number of frames around target frame are used for plotting events
         '''
         # Check if filename is specified
@@ -99,7 +99,7 @@ class MP_data:
             temp_events = events[events['frame_ind']==frame_no]
             counts.append(len(temp_events))
             # Only show big particles
-            temp_events = temp_events[temp_events['kDa'] > threshold_big]
+            temp_events = temp_events[temp_events['kDa'] > threshold]
             big_counts.append(len(temp_events))
         # Select frame number
         if frame == 'most':
