@@ -12,6 +12,7 @@ import sys, glob, os
 sys.path.append("../")
 from libspec import MP_data
 from tempfile import NamedTemporaryFile
+import ipdb
 
 # Initial parameters
 movie = False
@@ -181,10 +182,14 @@ def load_data(fn_events, fn_movie='', frame_range=2):
             dataset = load_data(fn_events=f.name, fn_movie=f2.name)
     return dataset
 
-dataset = load_data(fn_events, fn_movie)
-fig, ax = plt.subplots(1)
-dataset.plot_histo(ax=ax)
-image.pyplot(fig)
+print("Hallo")
+ipdb.set_trace()
+
+
+# dataset = load_data(fn_events, fn_movie)
+# fig, ax = plt.subplots(1)
+# dataset.plot_histo(ax=ax)
+# image.pyplot(fig)
 
 # # Read data
 # video, events, data_loaded = read_data(fn_movie, fn_events)
