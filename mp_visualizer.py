@@ -14,10 +14,15 @@ from libspec import MP_data
 from tempfile import NamedTemporaryFile
 import ipdb
 
+fs = 20
+# Get fonts bigger
+plt.rcParams.update({'font.size': fs})
+
 # Initial parameters
 movie = False
 events = False
 
+st.sidebar.title("MP movie player")
 # Label
 st.sidebar.header("1. Upload file(s)")
 # st.sidebar.subheader("Movie file")
@@ -26,6 +31,8 @@ fn_movie = st.sidebar.file_uploader("Movie file", type=['mp','mpr'])
 # st.sidebar.subheader("Events file (optional)")
 fn_events = st.sidebar.file_uploader("Events file (optional)", type=['h5','csv'])
 st.sidebar.header("Processing parameters")
+st.sidebar.slider("Frame range", 0, 20, 4)
+st.sidebar.slider("Mass threshold", 0, 5000, 100)
 
 st.sidebar.header("Play movie")
 # Interactive Streamlit elements, like these sliders, return their value.
@@ -54,7 +61,7 @@ hist = col1.empty()
 # Parameters
 threshold_big=1000
 ratiometric_size=10
-frame_range=2
+frame_range=4
 
 # Variable to check if data was loaded
 data_loaded = False
@@ -140,7 +147,8 @@ def create_image(dra, events_frame, frame_num):
     #fig = px.imshow(dra)
     fig = plt.figure()
     ax = fig.add_axes([0, 0, 1, 1])
-    ax.imshow(dra, norm=colors.SymLogNorm(linthresh=0.02, base=10, linscale=1)) #, vmin=-thresh, vmax=thresh))
+    ax.imshow(dra, norm=colors.SymLogNorm(linthresh=0.02, base=10, linscale=1, vmin=-thresh, vmax=thresh))
+    ax.axis('off')
     # Draw circles
     for event in events_frame.iterrows():
         event = event[1]
@@ -157,7 +165,7 @@ def create_image(dra, events_frame, frame_num):
             alpha= 0.1
         circ = Circle((int(event['x_coords']), int(event['y_coords'])), 5, fc='None', ec='red', lw=2, alpha=alpha)
         ax.add_patch(circ)
-        ax.text(int(event['x_coords']), int(event['y_coords'])+5, int(event['kDa']), ha='center', va='top', fontsize=6)
+        ax.text(int(event['x_coords']), int(event['y_coords'])+5, int(event['kDa']), ha='center', va='top', fontsize=fs)
     return fig
 
 @st.cache_data
@@ -170,6 +178,22 @@ def plot_histogram(hist_counts, hist_bins, bin_width, events_frame, frame_num):
     fig = plt.figure()
     ax = fig.add_axes([0, 0, 1, 1])
     ax.bar(hist_centers, hist_counts, width=bin_width)
+    ax.set_xlim(-100, 1200)
+    ax.set_xlabel('Mass / kDa')
+    ax.set_ylabel('Counts')
+    # Show dotted lines for each fitted event
+    for event in events_frame.iterrows():
+        event = event[1]
+        if event['frame_ind'] == frame_num:
+            alpha = 1
+        elif np.abs(event['frame_ind'] - frame_num) == 1:
+            alpha = 0.5
+        elif np.abs(event['frame_ind'] - frame_num) == 2:
+            alpha = 0.25
+        else:
+            alpha= 0.1
+        #print(event['kDa']) #, linestyle=':')
+        ax.axvline(event['kDa'], alpha=alpha, linestyle=':', color='red', linewidth=3)
     return fig
 
 # @st.cache_data
@@ -209,7 +233,7 @@ if data_loaded:
     hist_counts, hist_bins, bin_width = create_histogram(events)
     # Create histo plot
     fig_hist = plot_histogram(hist_counts, hist_bins, bin_width, events_frame, frame_num)
-    # Plot it 
+    # Plotit 
     # image.plotly_chart(fig)
     image.pyplot(fig)
     image_hist.pyplot(fig_hist)
