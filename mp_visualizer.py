@@ -2,7 +2,7 @@ import streamlit as st
 import numpy as np
 from typing import Any
 import h5py
-import plotly.express as px
+# import plotly.express as px
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
@@ -140,7 +140,7 @@ def create_image(dra, events_frame, frame_num):
     #fig = px.imshow(dra)
     fig = plt.figure()
     ax = fig.add_axes([0, 0, 1, 1])
-    ax.imshow(dra, norm=colors.SymLogNorm(linthresh=0.02, base=10, linscale=1, vmin=-thresh, vmax=thresh))
+    ax.imshow(dra, norm=colors.SymLogNorm(linthresh=0.02, base=10, linscale=1)) #, vmin=-thresh, vmax=thresh))
     # Draw circles
     for event in events_frame.iterrows():
         event = event[1]
@@ -172,18 +172,18 @@ def plot_histogram(hist_counts, hist_bins, bin_width, events_frame, frame_num):
     ax.bar(hist_centers, hist_counts, width=bin_width)
     return fig
 
-@st.cache_data
-def load_data(fn_events, fn_movie='', frame_range=2):
-    # Load data
-    with NamedTemporaryFile(dir='.', suffix='.mpr') as f:
-        f.write(fn_events.getbuffer())
-        with NamedTemporaryFile(dir='.', suffix='.h5') as f2:
-            f2.write(fn_movie.getbuffer())
-            dataset = load_data(fn_events=f.name, fn_movie=f2.name)
-    return dataset
+# @st.cache_data
+# def load_data(fn_events, fn_movie='', frame_range=2):
+#     # Load data
+#     with NamedTemporaryFile(dir='.', suffix='.mpr') as f:
+#         f.write(fn_events.getbuffer())
+#         with NamedTemporaryFile(dir='.', suffix='.h5') as f2:
+#             f2.write(fn_movie.getbuffer())
+#             dataset = load_data(fn_events=f.name, fn_movie=f2.name)
+#     return dataset
 
-print("Hallo")
-ipdb.set_trace()
+# print("Hallo")
+# ipdb.set_trace()
 
 
 # dataset = load_data(fn_events, fn_movie)
@@ -191,30 +191,30 @@ ipdb.set_trace()
 # dataset.plot_histo(ax=ax)
 # image.pyplot(fig)
 
-# # Read data
-# video, events, data_loaded = read_data(fn_movie, fn_events)
-# print(video)
-# hist_counts, hist_bins, bin_width = create_histogram(events)
+# Read data
+video, events, data_loaded = read_data(fn_movie, fn_events)
+print(video)
+hist_counts, hist_bins, bin_width = create_histogram(events)
 
-# # Extract one frame
-# if data_loaded:
-#     frame_num = slider.slider("Frame number", 1, video.shape[0]+1, 1, 1)
-#     # Obtain dra and frame_events
-#     dra, events_frame = create_dra(frame_num, video, events, frame_range=frame_range)
-#     # Delete previous image
-#     image.empty()
-#     # Create image
-#     #fig = create_image(dra, events_frame, frame_num)
-#     # Create histogram
-#     #hist_counts, hist_bins, bin_width = create_histogram(events)
-#     # Create histo plot
-#     # fig_hist = plot_histogram(hist_counts, hist_bins, bin_width, events_frame, frame_num)
-#     # Plot it 
-#     #image.plotly_chart(fig)
-#     #image.pyplot(fig)
-#     #image_hist.pyplot(fig_hist)
-#     # And show events
-#     #table.dataframe(events_frame)
+# Extract one frame
+if data_loaded:
+    frame_num = slider.slider("Frame number", 1, video.shape[0]+1, 1, 1)
+    # Obtain dra and frame_events
+    dra, events_frame = create_dra(frame_num, video, events, frame_range=frame_range)
+    # Delete previous image
+    image.empty()
+    # Create image
+    fig = create_image(dra, events_frame, frame_num)
+    # Create histogram
+    hist_counts, hist_bins, bin_width = create_histogram(events)
+    # Create histo plot
+    fig_hist = plot_histogram(hist_counts, hist_bins, bin_width, events_frame, frame_num)
+    # Plot it 
+    # image.plotly_chart(fig)
+    image.pyplot(fig)
+    image_hist.pyplot(fig_hist)
+    # And show events
+    table.dataframe(events_frame)
 
 # m, n, s = 960, 640, 400
 # x = np.linspace(-m / s, m / s, num=m).reshape((1, m))
