@@ -31,6 +31,7 @@ sys.path.append("../")
 from libspec import MP_data
 
 # File folder, adjust this one
+# This is the linux path syntax, for Windows it needs to be adjusted, e.g. by using \ instead of /
 fn = './experiments/001_mpdata.h5'
 
 # Parameters to search for gaussians
@@ -78,6 +79,7 @@ fs = 12
 matplotlib.rcParams.update({'font.size': fs})
 
 # Folder with raw data
+# This is the linux path syntax, for Windows it needs to be adjusted, e.g. by using \ instead of /
 folder = './experiment_folder/'
 
 # Initialize instance
@@ -90,9 +92,50 @@ bli_data.align(step=0, location='start')
 bli_data.smooth(window_length=21)
 
 # Plot signal for binding
-fig, ax = bli_data.plot(legend='SampleID', legend_step=3, abbrev_step_names=True, steps=[0,1,2,3,4], sensors=range(1,8)) 
+fig, ax = bli_data.plot(legend='SampleID', legend_step=3, abbrev_step_names=True, steps=[0,1,2,3,4], sensors=range(1,8))
+# Save plot
+fig.savefig('./bli_plot.pdf')
 ```
 <img src="./readme_files/bli_plot.png" width=50% height=50%>
+
+#### Example for kinetic fit (experimental)
+
+```python
+# Load modules
+import matplotlib.pyplot as plt
+import matplotlib
+import sys
+sys.path.append('../')
+from libspec import BLI_data
+
+# Font size
+fs = 12
+matplotlib.rcParams.update({'font.size': fs})
+
+# Folder with raw data
+# This is the linux path syntax, for Windows it needs to be adjusted, e.g. by using \ instead of /
+folder = './experiment_folder/'
+
+# Initialize instance
+bli_data = BLI_data(folder=folder)
+# Remove jumps (use average of first 3 points)
+bli_data.remove_jumps(xshift=3)
+# Align curves to beginning of association (step 3)
+bli_data.align(step=2, location='end')
+# Smooth curves with a 21 point window
+bli_data.smooth(window_length=21)
+# # Subtract reference sensor
+bli_data.subtract(ref_sensor=7, sample_sensors=[0,1,2,3,4,5,6,7])
+# Align again
+bli_data.align(step=4, location='end')
+
+# Do fit of selected sensor and plot it
+fig, ax = bli_data.fit_data(sensors=[4], step_assoc=3, step_dissoc=4, func='monoexp', plot=True)
+# Save plot
+fig.savefig('./bli_fit.pdf')
+```
+
+<img src="./readme_files/bli_fit.png" width=50% height=50%>
 
 ### Discontinued modules
 
