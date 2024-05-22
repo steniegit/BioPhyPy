@@ -13,53 +13,95 @@ DSF_fit, MST_data and MP_data are available as user-friendly webservers: https:/
 
 ## Modules
 
-### DSF_fit
- * Visualization of DSF data
- * Isothermal analysis
- * Tm analysis
-
 ### MP_data
  * Visualization of mass photometry data
  * Generation of histograms and gaussian fitting
+ * Can also read movie file to show frames in combination with histogram
 
 #### Jupyter notebook example
 ```python
 %matplotlib tk
-import sys
+import sys, glob, os
 sys.path.append("../")
+import numpy as np
 # Load python class
 from libspec import MP_data
 
-# File folder, adjust this one
+# Adjust font size
+fs = 18
+plt.rcParams.update({'font.size': fs})
+
+# Histogram file
 # This is the linux path syntax, for Windows it needs to be adjusted, e.g. by using \ instead of /
-fn = './experiments/001_mpdata.h5'
+fn ='./folder/example.h5'
 
-# Parameters to search for gaussians
-guess_pos = [60, 80]
-tol = 20
-max_width = 10
-
+# Default parameters for processing
+# Limits for
+show_lim = [-100, 600]
+guess_pos = [66, 148, 480]
+max_width=20
 # Load eventsFitted
-dataset = MP_data(fn=fn)
+dataset = MP_data(fn=fn, mp_fn=mp_fn)
 # Create histogram
 dataset.create_histo(bin_width=4)
 # Fit bands in mass space
-dataset.fit_histo(guess_pos=guess_pos, tol=tol, xlim=[-100,1000], max_width=max_width)
+dataset.fit_histo(guess_pos=guess_pos, tol=30, cutoff=0, xlim=[-100,1500], max_width=max_width)
 
-# Define fontsize for plot
+# Create wider plot than default
+fig, ax = plt.subplots(1, figsize=[8, 4])
+# Plot histogram
+dataset.plot_histo(xlim=show_lim, ax=ax, show_labels=True, short_labels=True, show_counts=True)
+
+# Save plot
+fig.savefig('./mp_plot.pdf')
+```
+<img src="./readme_files/mp_plot.png" width=70% height=70%>
+
+#### Optional: Showing frame from movie as inlet
+
+```python
+%matplotlib tk
+import sys, glob, os
+sys.path.append("../")
+import numpy as np
+# Load python class
+from libspec import MP_data
+
+# Font size
 fs = 18
-# Get fonts bigger
 plt.rcParams.update({'font.size': fs})
 
-# Plot data
-fig, ax = dataset.plot_histo(xlim=[-500, 1000])
-# Save figure
-fig.savefig(fn.replace('.h5','.pdf'))
-```
-<img src="./readme_files/mp_plot.png" width=50% height=50%>
+# Histogram file
+# This is the linux path syntax, for Windows it needs to be adjusted, e.g. by using \ instead of /
+fn ='./folder/events.h5'
+# Movie file
+mp_fn = './folder/movie.mpr'
 
-### MST_data
-* Visualize data and fit affinities
+# Default parameters for processing
+# Limits for
+show_lim = [-100, 600]
+guess_pos = [66, 148, 480]
+max_width=20
+# Load eventsFitted and movie file
+dataset = MP_data(fn=fn, mp_fn=mp_fn)
+# Set parameters for later plot of the frame
+# Analyze movie for later inlet
+# Frame with largest numbers of fitted events above threshold is chosen
+dataset.analyze_movie(frame_range=2, frame='largest', threshold=50, show_lines=True)
+# Create histogram
+dataset.create_histo(bin_width=4)
+# Fit bands in mass space
+dataset.fit_histo(guess_pos=guess_pos, tol=30, cutoff=0, xlim=[-100,1500], max_width=max_width)
+
+# Create plot
+fig, ax = plt.subplots(1, figsize=[8, 4])
+dataset.plot_histo(xlim=show_lim, ax=ax, show_labels=False, short_labels=True, show_counts=False, contrasts=False)
+
+# Save plot
+fig.savefig('./mp_inlet.pdf')
+```
+<img src="./readme_files/mp_movie.png" width=70% height=70%>
+
 
 ### BLI_data
 * Visualization of BLI data
@@ -93,7 +135,8 @@ bli_data.smooth(window_length=21)
 
 # Plot signal for binding
 fig, ax = bli_data.plot(legend='SampleID', legend_step=3, abbrev_step_names=True, steps=[0,1,2,3,4], sensors=range(1,8))
-# Save plot
+# Save plot### MST_data
+* Visualize data and fit affinities
 fig.savefig('./bli_plot.pdf')
 ```
 <img src="./readme_files/bli_plot.png" width=50% height=50%>
@@ -136,6 +179,14 @@ fig.savefig('./bli_fit.pdf')
 ```
 
 <img src="./readme_files/bli_fit.png" width=50% height=50%>
+
+### DSF_fit
+ * Visualization of DSF data
+ * Isothermal analysis
+ * Tm analysis
+
+### MST_data
+* Visualize data and fit affinities
 
 ### Discontinued modules
 
