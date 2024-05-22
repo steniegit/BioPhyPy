@@ -475,7 +475,7 @@ class BLI_data:
             try:
                 fit_popt_dissoc, fit_pcov_dissoc = curve_fit(func_dissoc, dissoc_time, dissoc, p0=guess, bounds=(0, np.inf))
             except:
-                print("Could not fit association for sensor %i" % (sensor))
+                print("Could not fit dissociation for sensor %i" % (sensor))
                 pass
             fitted_dissoc = func_dissoc(dissoc_time, *fit_popt_dissoc)
             # Undo normalization of times
@@ -498,8 +498,8 @@ class BLI_data:
             self.fit_results[sensor]['r2_dissoc'] = r_sq(fitted_dissoc, dissoc)
             # Calculate Kd
             if func=='monoexp':
-                kobs = fit_popt_assoc[sensor]
-                kdiss = fit_popt_dissoc[sensor]
+                kobs = fit_popt_assoc[0]
+                kdiss = fit_popt_dissoc[0]
                 conc = self.step_info[sensor]['MolarConcentration_M'][step_assoc]
                 r2_assoc = self.fit_results[sensor]['r2_assoc']
                 r2_dissoc = self.fit_results[sensor]['r2_dissoc']
