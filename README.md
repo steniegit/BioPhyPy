@@ -13,14 +13,10 @@ DSF_fit, MST_data and MP_data are available as user-friendly webservers: https:/
 
 ## Modules
 
-### DSF_fit
- * Visualization of DSF data
- * Isothermal analysis
- * Tm analysis
-
 ### MP_data
  * Visualization of mass photometry data
  * Generation of histograms and gaussian fitting
+ * Can also read movie file to show frames in combination with histogram
 
 #### Jupyter notebook example
 ```python
@@ -86,9 +82,8 @@ mp_fn = './folder/movie.mpr'
 show_lim = [-100, 600]
 guess_pos = [66, 148, 480]
 max_width=20
-# Load eventsFitted
+# Load eventsFitted and movie file
 dataset = MP_data(fn=fn, mp_fn=mp_fn)
-# Read movie file
 # Set parameters for later plot of the frame
 # Analyze movie for later inlet
 # Frame with largest numbers of fitted events above threshold is chosen
@@ -107,9 +102,6 @@ fig.savefig('./mp_inlet.pdf')
 ```
 <img src="./readme_files/mp_movie.png" width=70% height=70%>
 
-
-### MST_data
-* Visualize data and fit affinities
 
 ### BLI_data
 * Visualization of BLI data
@@ -143,7 +135,8 @@ bli_data.smooth(window_length=21)
 
 # Plot signal for binding
 fig, ax = bli_data.plot(legend='SampleID', legend_step=3, abbrev_step_names=True, steps=[0,1,2,3,4], sensors=range(1,8))
-# Save plot
+# Save plot### MST_data
+* Visualize data and fit affinities
 fig.savefig('./bli_plot.pdf')
 ```
 <img src="./readme_files/bli_plot.png" width=50% height=50%>
@@ -186,6 +179,14 @@ fig.savefig('./bli_fit.pdf')
 ```
 
 <img src="./readme_files/bli_fit.png" width=50% height=50%>
+
+### DSF_fit
+ * Visualization of DSF data
+ * Isothermal analysis
+ * Tm analysis
+
+### MST_data
+* Visualize data and fit affinities
 
 ### Discontinued modules
 
