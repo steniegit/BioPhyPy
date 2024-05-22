@@ -11,7 +11,6 @@ import xml.etree.ElementTree as ET
 from scipy.optimize import curve_fit
 from .helpers import etree_to_dict, combine_dicts
 import matplotlib.pyplot as plt
-import scipy.signal as ssi
 from .helpers import *
 
 # To do
@@ -531,16 +530,19 @@ class BLI_data:
                     # Get dimensions
                     xlim = ax.get_xlim()
                     ylim = ax.get_ylim()
-                    ax.text(xlim[1], ylim[1], 'Fit binding:\n\
-                    k$_\mathrm{obs}$: %.1e 1/s\
-                    \nR$^2$: %.4f\n\
-                    Fit dissociation:\n\
-                    k$_\mathrm{diss}$: %.1e 1/s\n\
-                    R$^2$: %.4f\n\
-                    Calculated:\n\
-                    k$_\mathrm{on}$: %.1e 1/sM\n\
-                    K$_d$: %.1e M' % (kobs, r2_assoc, kdiss, r2_dissoc, kon, Kd),
-                            ha='left', va='top')
+                    # Create string for fit data
+                    fit_str = 'Fit association:\n' +\
+                        'k$_\mathrm{obs}$: %.1e 1/s\n' % kobs +\
+                        'R$^2$: %.4f\n\n' % r2_assoc +\
+                        'Fit dissociation:\n'  +\
+                        'k$_\mathrm{diss}$: %.1e 1/s\n' % kdiss +\
+                        'R$^2$: %.4f\n\n' % r2_dissoc +\
+                        'Calculated:\n' +\
+                        'k$_\mathrm{on}$: %.1e 1/sM\n' % kon +\
+                        'K$_d$: %.1e M' % Kd
+                    print(fit_str)
+                    text = ax.text(0.95, .93, fit_str,transform=ax.transAxes,
+                                   ha='right', va='top', bbox=dict(facecolor='none', edgecolor='black', boxstyle='round' ,pad=.5))
                 elif func == 'biexp':
                     pass
         return fig, ax

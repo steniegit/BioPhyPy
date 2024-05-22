@@ -57,13 +57,14 @@ class MP_data:
         self.fit_table = pd.DataFrame()
         return None
 
-    def analyze_movie(self, frame='most', threshold=0, ratiometric_size=10, frame_range=2, image_scale=1, image_xoffset=0, image_yoffset=0):
+    def analyze_movie(self, frame='most', threshold=0, ratiometric_size=10, frame_range=2, image_scale=1, image_xoffset=0, image_yoffset=0, show_lines=True):
         '''
         It is optional to use the original movie file
         This can be used to show an inlet in the plots
         frame :        frame with 'most' counts or frame number (int)
         threshold: threshold for frame='most'
         frame_range:   Number of frames around target frame are used for plotting events
+        show_lines: Show dotted lines for each fitted event in a frame, takes into account frame_range
         '''
         # Check if filename is specified
         if self.mp_fn == '':
@@ -77,6 +78,7 @@ class MP_data:
         self.image_scale = image_scale
         self.image_xoffset = image_xoffset
         self.image_yoffset = image_yoffset
+        self.show_lines = show_lines
         # Load video file
         video = h5py.File(self.mp_fn)
         video = np.array(video['movie']['frame']).astype('int16')
@@ -567,6 +569,20 @@ class MP_data:
                 circ = Circle((int(event['x_coords']), int(event['y_coords'])), 5, fc='None', ec='red', lw=2, alpha=alpha)
                 axin.add_patch(circ)
                 axin.text(int(event['x_coords']), int(event['y_coords'])+5, int(event['kDa']), ha='center', va='top', fontsize=6)
+            # Plot positions if chosen
+            if self.show_lines:
+                for event in self.events.iterrows():
+                    event = event[1]
+                    # Adjust alpha based on how current the frame is
+                    if event['frame_ind'] == self.frame_no:
+                        alpha = 1
+                    elif np.abs(event['frame_ind'] - self.frame_no) == 1:
+                        alpha = 0.5
+                    elif np.abs(event['frame_ind'] - self.frame_no) == 2:
+                        alpha = 0.25
+                    else:
+                        alpha= 0.1
+                    ax.axvline(event['kDa'], alpha=alpha, linestyle=':', color='red', linewidth=1.5)
         return fig, ax
     
     def fit_histo(self, xlim=[], guess_pos=[], tol=None, max_width=None, weighted=False, weighted_width=None, contrasts=False, cutoff=0, fit_points=1000):
