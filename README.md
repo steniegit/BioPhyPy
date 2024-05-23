@@ -1,4 +1,4 @@
-# libspec: A python library for the analysis of biophysical data
+# BioPhyPy: A python library for the analysis of biophysical data
 
 This library contains modules for the analysis of different biophysical techniques. Most of the them are experimental. No warranty whatsoever.
 DSF_fit, MST_data and MP_data are available as user-friendly webservers: https://spc.embl-hamburg.de/
@@ -11,14 +11,20 @@ DSF_fit, MST_data and MP_data are available as user-friendly webservers: https:/
 * MP_data
   * Niebling, S., Veith, K., Vollmer, B., Lizarrondo, J., Burastero, O., Schiller, J., ... & García-Alai, M. (2022). [Biophysical Screening Pipeline for Cryo-EM Grid Preparation of Membrane Proteins.]( https://www.frontiersin.org/articles/10.3389/fmolb.2022.882288/full) Frontiers in Molecular Biosciences, 535.
 
-## Modules
+# Modules
 
-### DSF_fit: Differential scanning fluorimetry
+Currently BioPhyPy contains the following modules:
+* DSF_fit: Differential scanning fluorimetry
+* MP_data: Mass photometry
+* BLI_data: Biolayer interferometry
+* MST_data: Microscale thermophoresis
+
+## DSF_fit: Differential scanning fluorimetry
  * Visualization of DSF data
  * Isothermal analysis
  * Tm analysis
 
-#### Load and plot DSF data
+### Load and plot DSF data
 
 ```python
 import sys, os
@@ -60,7 +66,7 @@ fig.savefig('./fluo.pdf')
 ```
 <img src="./readme_files/fluo.png" width=50% height=50%>
 
-#### Do isothermal analysis to obtain Kd
+### Do isothermal analysis to obtain Kd
 
 ```python
 import sys, os
@@ -115,7 +121,7 @@ fig.savefig('../libspec/readme_files/iso.png', dpi=600)
 ```
 <img src="./readme_files/iso.png" width=100% height=100%>
 
-#### Melting temperature analysis
+### Melting temperature analysis
 
 ```python
 import sys, os
@@ -162,12 +168,12 @@ fig.savefig('./tms_%s.pdf' % tms_fit)
 ```
 <img src="./readme_files/tms_fit.png" width=50% height=50%>
 
-### MP_data: Mass photometry 
+## MP_data: Mass photometry 
  * Visualization of mass photometry data
  * Generation of histograms and gaussian fitting
  * Can also read movie file to show frames in combination with histogram
 
-#### Jupyter notebook example
+### Mass photometry histogram
 ```python
 %matplotlib tk
 import sys, glob, os
@@ -206,7 +212,7 @@ fig.savefig('./mp_plot.pdf')
 ```
 <img src="./readme_files/mp_plot.png" width=70% height=70%>
 
-#### Optional: Showing frame from movie as inlet
+### Optional: Showing frame from movie as inlet
 
 ```python
 %matplotlib tk
@@ -252,11 +258,11 @@ fig.savefig('./mp_inlet.pdf')
 <img src="./readme_files/mp_movie.png" width=70% height=70%>
 
 
-### BLI_data: Bilayer interferometry 
+## BLI_data: Bilayer interferometry 
 * Visualization of BLI data
 * Kinetic fits not fully implemented yet
 
-#### Jupyter notebook example
+### Showing sensograms
 ```python
 # Load modules
 import matplotlib.pyplot as plt
@@ -329,10 +335,10 @@ fig.savefig('./bli_fit.pdf')
 
 <img src="./readme_files/bli_fit.png" width=50% height=50%>
 
-### MST_data: Microscale thermophoresis
+## MST_data: Microscale thermophoresis
 * Visualize data and fit affinities
 
-#### Do MST analysis
+### Do MST analysis
 
 ```python
 # Load modules
@@ -365,7 +371,7 @@ fig.savefig('./mst.pdf')
 ```
 <img src="./readme_files/mst.png" width=80% height=80%>
 
-#### Check initial fluorescence
+### Check initial fluorescence
 
 ```python
 # Load modules
@@ -391,7 +397,7 @@ fig, ax = data.plot_init_fluo()
 ```
 <img src="./readme_files/mst_init_fluo.png" width=80% height=80%>
 
-### Discontinued modules
+## Discontinued modules
 
 * CD_data
 * IR_data
