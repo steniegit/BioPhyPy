@@ -13,7 +13,158 @@ DSF_fit, MST_data and MP_data are available as user-friendly webservers: https:/
 
 ## Modules
 
-### MP_data
+### DSF_fit: Differential scanning fluorimetry
+ * Visualization of DSF data
+ * Isothermal analysis
+ * Tm analysis
+
+#### Load and plot DSF data
+
+```python
+import sys, os
+# Load parental folder that contains module folder
+sys.path.append("../")
+import numpy as np
+# Load python class
+from libspec.DSF_fit import DSF_binding
+
+# Parameters, adjust!
+fn = './2405_ndsf_example/example.xlsx'
+# Decide whether to load '330nm', '350nm' or 'Ratio' data
+which = 'Ratio'
+
+# Load data
+test = DSF_binding()
+# Specify temperature window
+window = [22, 55]
+
+# Create list with analyte concentrations
+# Here it was a serial dilution with 14 concentrations
+# starting at 5 mM
+concs = []
+for i in range(14):
+    concs.append(5E-3*0.5**i)
+# Pure protein without analyte
+concs.append(0)
+# Experiment was run in triplicates
+concs = 3*concs
+
+# Load data
+test.load_xlsx(fn=fn, concs=concs, which=which, window=window, load_fit=False)
+# Protein Concentration
+test.pconc = 10E-6
+# Plot fluorescence signal
+fig, ax = test.plot_fluo()
+# Save figure
+fig.savefig('./fluo.pdf')
+```
+<img src="./readme_files/fluo.png" width=70% height=70%>
+
+#### Do isothermal analysis to obtain Kd
+
+```python
+import sys, os
+# Load parental folder that contains module folder
+sys.path.append("../")
+import numpy as np
+# Load python class
+from libspec.DSF_fit import DSF_binding
+
+# Parameters, adjust!
+fn = './2405_ndsf_example/example.xlsx'
+# Decide whether to load '330nm', '350nm' or 'Ratio' data
+which = 'Ratio'
+
+# Load data
+test = DSF_binding()
+# Specify temperature window
+window = [22, 55]
+
+# Create list with analyte concentrations
+# Here it was a serial dilution with 14 concentrations
+# starting at 5 mM
+concs = []
+for i in range(14):
+    concs.append(5E-3*0.5**i)
+# Pure protein without analyte
+concs.append(0)
+# Experiment was run in triplicates
+concs = 3*concs
+
+# Load data
+test.load_xlsx(fn=fn, concs=concs, which=which, window=window, load_fit=False)
+# Protein Concentration
+test.pconc = 10E-6
+
+# Local fit of fluorescence curves
+test.fit_fluo_local()
+# Subsequent global fit
+test.fit_fluo_global()
+# Plot fits
+fig, ax = test.plot_fit_fluo()
+fig.savefig('./fluo_fit.pdf')
+fig.savefig('../libspec/readme_files/fluo_fit.png', dpi=600)
+# Define temperatures for isothermal analysis, should be around Tm
+test.isothermal_ts = [32,34,36,38, 40, 42, 44, 46, 48] #np.arange(45,55,1)
+# Isothermal analysis
+test.fit_isothermal()
+# Plot isothermal analysis
+fig, ax = test.plot_fit_isothermal(show_only_kd=True)
+fig.savefig('./iso.pdf')
+fig.savefig('../libspec/readme_files/iso.png', dpi=600)
+```
+<img src="./readme_files/fluo_fit.png" width=70% height=70%>
+<img src="./readme_files/iso.png" width=70% height=70%>
+
+#### Melting temperature analysis
+
+```python
+import sys, os
+# Load parental folder that contains module folder
+sys.path.append("../")
+import numpy as np
+# Load python class
+from libspec.DSF_fit import DSF_binding
+
+# Parameters, adjust!
+fn = './2405_ndsf_example/example.xlsx'
+# Decide whether to load '330nm', '350nm' or 'Ratio' data
+which = 'Ratio'
+
+# Load data
+test = DSF_binding()
+# Specify temperature window
+window = [22, 55]
+
+# Create list with analyte concentrations
+# Here it was a serial dilution with 14 concentrations
+# starting at 5 mM
+concs = []
+for i in range(14):
+    concs.append(5E-3*0.5**i)
+# Pure protein without analyte
+concs.append(0)
+# Experiment was run in triplicates
+concs = 3*concs
+
+# Load data
+test.load_xlsx(fn=fn, concs=concs, which=which, window=window, load_fit=False)
+# Protein Concentration
+test.pconc = 10E-6
+
+# Determine melting temperatures from 1st derivative 
+test.tms_from_derivatives()
+# Specify fitting model: 'single' site or 'hill'
+tms_fit = 'single' # 
+test.fit_tms(fit=tms_fit)
+# Plot melting temperatures and fit
+fig, ax = test.plot_tms()
+fig.savefig('./tms_%s.pdf' % tms_fit)
+```
+<img src="./readme_files/tms_fit.png" width=70% height=70%>
+
+
+### MP_data: Mass photometry 
  * Visualization of mass photometry data
  * Generation of histograms and gaussian fitting
  * Can also read movie file to show frames in combination with histogram
@@ -103,7 +254,7 @@ fig.savefig('./mp_inlet.pdf')
 <img src="./readme_files/mp_movie.png" width=70% height=70%>
 
 
-### BLI_data
+### BLI_data: Bilayer interferometry 
 * Visualization of BLI data
 * Kinetic fits not fully implemented yet
 
@@ -180,12 +331,7 @@ fig.savefig('./bli_fit.pdf')
 
 <img src="./readme_files/bli_fit.png" width=50% height=50%>
 
-### DSF_fit
- * Visualization of DSF data
- * Isothermal analysis
- * Tm analysis
-
-### MST_data
+### MST_data: Microscale thermophoresis
 * Visualize data and fit affinities
 
 ### Discontinued modules
