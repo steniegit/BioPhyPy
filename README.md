@@ -363,7 +363,7 @@ fig, ax = data.plot()
 # Save figure 
 fig.savefig('./mst.pdf')
 ```
-<img src="./readme_files/mst.png" width=50% height=50%>
+<img src="./readme_files/mst.png" width=80% height=80%>
 
 #### Check initial fluorescence
 
@@ -389,7 +389,7 @@ data.calc_fnorm(hot=20)
 # Plot data
 fig, ax = data.plot_init_fluo()
 ```
-<img src="./readme_files/mst_init_fluo.png" width=50% height=50%>
+<img src="./readme_files/mst_init_fluo.png" width=80% height=80%>
 
 ### Discontinued modules
 
