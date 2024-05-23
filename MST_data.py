@@ -28,7 +28,7 @@ class MST_data():
         # Get concentrations and locations
         lig_pos_ver = np.argwhere(np.array(dat.iloc[:,0]) == 'Ligand Concentration:')[0,0] 
         lig_pos_hor = np.argwhere(np.array(dat.iloc[lig_pos_ver,:]) == 'Ligand Concentration:').squeeze() +1
-        self.concs = np.array(dat.iloc[lig_pos_ver, lig_pos_hor]).astype(np.float32) * 1E-9
+        self.concs = np.array(dat.iloc[lig_pos_ver, lig_pos_hor]).astype(np.float32) * 1E-6
         # Get ligand name
         lig_pos_ver = np.argwhere(np.array(dat.iloc[:,0]) == 'Ligand:')[0,0] 
         lig_pos_hor = np.argwhere(np.array(dat.iloc[lig_pos_ver,:]) == 'Ligand:').squeeze() +1
@@ -195,7 +195,7 @@ class MST_data():
             ax.legend()
             ax.set_ylabel('F$_\mathrm{norm,bl}$ / Counts' )
         else:
-            ax.set_title('MST analysis')
+            ax.set_title('MST analysis (after normalisation)')
             self.plot_colored(ax, self.concs, fnorm, self.concs)
             if (len(fit_fnorm) > 0 ):
                 if fit_fnorm_err[0] / fit_fnorm_opt[0] < 1:
@@ -219,7 +219,9 @@ class MST_data():
         # Plot tolerance area +- 20%
         F_mean = np.mean(f_init)
         ax.axhline(F_mean, linestyle='--', color='grey', zorder=-10)
-        ax.axhspan(.8*F_mean, 1.2*F_mean, facecolor='grey', alpha=.5, zorder=-20)
+        ax.axhline(.8*F_mean, linestyle='--', color='grey', zorder=-10)
+        ax.axhline(1.2*F_mean, linestyle='--', color='grey', zorder=-10)
+        ax.axhspan(.8*F_mean, 1.2*F_mean, facecolor='grey', alpha=.3, zorder=-20)
         # # Plot bleach rate
         # ax = axs[1,1]
         # ax.set_title('Bleaching rate vs. ligand conc.')
@@ -248,7 +250,7 @@ class MST_data():
         print("Figure saves as %s" % self.fn.replace('.xlsx', '_mst_and_init_F.pdf'))
         fig.savefig(self.fn.replace('.xlsx', '_mst_and_init_F.png'))
         print("Figure saves as %s" % self.fn.replace('.xlsx', '_mst_and_init_F.png'))
-        return None
+        return fig, ax
 
     def fit_kd(self,concs, y, fix_pconc=False):
        # Chose fitting function
@@ -411,7 +413,7 @@ class MST_data():
     
     def plot(self, smooth=False, smooth_window=51, show_error=True):
         if hasattr(self, 'fnorm'):
-            fig, axs = plt.subplots(1,2, figsize=(10,5))
+            fig, axs = plt.subplots(1,2, figsize=(10,4))
             ## Plot outliers in gray
             #for out in self.outliers:
             #    ax.semilogx(self.concs[out], self.fnorm[out], 'o', color='gray')
@@ -535,5 +537,5 @@ class MST_data():
         else:
             fig.savefig(self.fn.replace('.xlsx', '_pconc_%.1EM.pdf' % self.pconc))
             fig.savefig(self.fn.replace('.xlsx', '_pconc_%.1EM.png' % self.pconc), dpi=600)
-        return None
+        return fig, ax 
 
