@@ -58,7 +58,7 @@ fig, ax = test.plot_fluo()
 # Save figure
 fig.savefig('./fluo.pdf')
 ```
-<img src="./readme_files/fluo.png" width=70% height=70%>
+<img src="./readme_files/fluo.png" width=50% height=50%>
 
 #### Do isothermal analysis to obtain Kd
 
@@ -113,8 +113,7 @@ fig, ax = test.plot_fit_isothermal(show_only_kd=True)
 fig.savefig('./iso.pdf')
 fig.savefig('../libspec/readme_files/iso.png', dpi=600)
 ```
-<img src="./readme_files/fluo_fit.png" width=70% height=70%>
-<img src="./readme_files/iso.png" width=70% height=70%>
+<img src="./readme_files/iso.png" width=100% height=100%>
 
 #### Melting temperature analysis
 
@@ -161,8 +160,7 @@ test.fit_tms(fit=tms_fit)
 fig, ax = test.plot_tms()
 fig.savefig('./tms_%s.pdf' % tms_fit)
 ```
-<img src="./readme_files/tms_fit.png" width=70% height=70%>
-
+<img src="./readme_files/tms_fit.png" width=50% height=50%>
 
 ### MP_data: Mass photometry 
  * Visualization of mass photometry data
@@ -197,7 +195,7 @@ dataset = MP_data(fn=fn, mp_fn=mp_fn)
 dataset.create_histo(bin_width=4)
 # Fit bands in mass space
 dataset.fit_histo(guess_pos=guess_pos, tol=30, cutoff=0, xlim=[-100,1500], max_width=max_width)
-
+fig.savefig('./mst_initfluo.pdf')
 # Create wider plot than default
 fig, ax = plt.subplots(1, figsize=[8, 4])
 # Plot histogram
@@ -333,6 +331,65 @@ fig.savefig('./bli_fit.pdf')
 
 ### MST_data: Microscale thermophoresis
 * Visualize data and fit affinities
+
+#### Do MST analysis
+
+```python
+# Load modules
+import sys
+sys.path.append('../')
+from libspec import MST_data
+import matplotlib.pyplot as plt
+
+# Folder
+fn = './2405_mst_example/mst_example.xlsx'
+
+# Define fontsize for plots
+fs = 14
+plt.rcParams.update({'font.size': fs})
+
+# Load data
+data = MST_data(fn=fn)
+# Normalize signal
+data.normalize()
+# Select "hot" region for MST analysis (seconds)
+data.calc_fnorm(hot=20)
+# Define protein concentration
+data.pconc = 10E-6
+# Fit Kd with fixed protein concentration
+data.get_kd(fix_pconc=True)
+# Plot data
+fig, ax = data.plot()
+# Save figure 
+fig.savefig('./mst.pdf')
+```
+<img src="./readme_files/mst.png" width=50% height=50%>
+
+#### Check initial fluorescence
+
+```python
+# Load modules
+import sys
+sys.path.append('../')
+from libspec import MST_data
+import matplotlib.pyplot as plt
+
+# Folder
+fn = './2405_mst_example/mst_example.xlsx'
+
+# Define fontsize for plots
+fs = 14
+plt.rcParams.update({'font.size': fs})
+
+# Load data
+data = MST_data(fn=fn)
+# Select "hot" region for MST analysis (seconds)
+data.calc_fnorm(hot=20)
+
+# Plot data
+fig, ax = data.plot_init_fluo()
+```
+<img src="./readme_files/mst_init_fluo.png" width=50% height=50%>
 
 ### Discontinued modules
 
