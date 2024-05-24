@@ -10,6 +10,17 @@ DSF_fit, MST_data and MP_data are available as user-friendly webservers: https:/
   * Bai, N., Roder, H., Dickson, A., & Karanicolas, J. (2019). [Isothermal analysis of ThermoFluor data can readily provide quantitative binding affinities.](https://www.nature.com/articles/s41598-018-37072-x) Scientific reports, 9(1), 1-15.
 * MP_data
   * Niebling, S., Veith, K., Vollmer, B., Lizarrondo, J., Burastero, O., Schiller, J., ... & García-Alai, M. (2022). [Biophysical Screening Pipeline for Cryo-EM Grid Preparation of Membrane Proteins.]( https://www.frontiersin.org/articles/10.3389/fmolb.2022.882288/full) Frontiers in Molecular Biosciences, 535.
+ 
+# Installation
+
+There is no installation necessary. After cloning the repository, add the parental folder to the path and then load the module you want to use. Below is an example:
+```python
+import sys
+# Load parental folder that contains BioPhysPy folder
+sys.path.append("../")
+# Load python class
+from BioPhyPy.DSF_fit import DSF_binding
+```
 
 # Modules
 
@@ -27,12 +38,12 @@ Currently BioPhyPy contains the following modules:
 ### Load and plot DSF data
 
 ```python
-import sys, os
-# Load parental folder that contains module folder
+# Load modules
+import sys
+# Add parental folder that contains module to path
 sys.path.append("../")
-import numpy as np
-# Load python class
-from libspec.DSF_fit import DSF_binding
+# Load module
+from BioPhyPy.DSF_fit import DSF_binding
 
 # Parameters, adjust!
 fn = './2405_ndsf_example/example.xlsx'
@@ -69,12 +80,12 @@ fig.savefig('./fluo.pdf')
 ### Do isothermal analysis to obtain Kd
 
 ```python
-import sys, os
-# Load parental folder that contains module folder
+# Load modules
+import sys
+# Add parental folder that contains BioPhysPy to path
 sys.path.append("../")
-import numpy as np
 # Load python class
-from libspec.DSF_fit import DSF_binding
+from BioPhyPy.DSF_fit import DSF_binding
 
 # Parameters, adjust!
 fn = './2405_ndsf_example/example.xlsx'
@@ -109,27 +120,25 @@ test.fit_fluo_global()
 # Plot fits
 fig, ax = test.plot_fit_fluo()
 fig.savefig('./fluo_fit.pdf')
-fig.savefig('../libspec/readme_files/fluo_fit.png', dpi=600)
 # Define temperatures for isothermal analysis, should be around Tm
-test.isothermal_ts = [32,34,36,38, 40, 42, 44, 46, 48] #np.arange(45,55,1)
+test.isothermal_ts = [32,34,36,38, 40, 42, 44, 46, 48] 
 # Isothermal analysis
 test.fit_isothermal()
 # Plot isothermal analysis
 fig, ax = test.plot_fit_isothermal(show_only_kd=True)
 fig.savefig('./iso.pdf')
-fig.savefig('../libspec/readme_files/iso.png', dpi=600)
 ```
 <img src="./readme_files/iso.png" width=100% height=100%>
 
 ### Melting temperature analysis
 
 ```python
+# Load modules
 import sys, os
-# Load parental folder that contains module folder
+# Add parental folder that contains BioPhysPy to path
 sys.path.append("../")
-import numpy as np
 # Load python class
-from libspec.DSF_fit import DSF_binding
+from BioPhyPy.DSF_fit import DSF_binding
 
 # Parameters, adjust!
 fn = './2405_ndsf_example/example.xlsx'
@@ -175,12 +184,12 @@ fig.savefig('./tms_%s.pdf' % tms_fit)
 
 ### Mass photometry histogram
 ```python
-%matplotlib tk
-import sys, glob, os
+import sys
+import matplotlib.pyplot as plt
+# Add parental folder that contains BioPhysPy to path
 sys.path.append("../")
-import numpy as np
 # Load python class
-from libspec import MP_data
+from BioPhyPy import MP_data
 
 # Adjust font size
 fs = 18
@@ -215,12 +224,12 @@ fig.savefig('./mp_plot.pdf')
 ### Optional: Showing frame from movie as inlet
 
 ```python
-%matplotlib tk
 import sys, glob, os
+# Add parental folder that contains BioPhysPy to path
 sys.path.append("../")
 import numpy as np
 # Load python class
-from libspec import MP_data
+from BioPhyPy import MP_data
 
 # Font size
 fs = 18
@@ -265,11 +274,11 @@ fig.savefig('./mp_inlet.pdf')
 ### Showing sensograms
 ```python
 # Load modules
-import matplotlib.pyplot as plt
-import matplotlib
 import sys
+# Add parental folder that contains BioPhysPy to path
 sys.path.append('../')
-from libspec import BLI_data
+# Load module
+from BioPhyPy import BLI_data
 
 # Font size
 fs = 12
@@ -300,11 +309,10 @@ fig.savefig('./bli_plot.pdf')
 
 ```python
 # Load modules
-import matplotlib.pyplot as plt
-import matplotlib
 import sys
+# Add parental folder that contains BioPhysPy to path
 sys.path.append('../')
-from libspec import BLI_data
+from BioPhyPy import BLI_data
 
 # Font size
 fs = 12
@@ -343,12 +351,14 @@ fig.savefig('./bli_fit.pdf')
 ```python
 # Load modules
 import sys
-sys.path.append('../')
-from libspec import MST_data
 import matplotlib.pyplot as plt
+# Add parental folder that contains BioPhysPy to path
+sys.path.append('../')
+# Load module
+from BioPhyPy import MST_data
 
 # Folder
-fn = './2405_mst_example/mst_example.xlsx'
+fn = './mst_example.xlsx'
 
 # Define fontsize for plots
 fs = 14
@@ -376,9 +386,11 @@ fig.savefig('./mst.pdf')
 ```python
 # Load modules
 import sys
-sys.path.append('../')
-from libspec import MST_data
 import matplotlib.pyplot as plt
+# Add parental folder that contains BioPhysPy to path
+sys.path.append('../')
+# Load module
+from BioPhyPy import MST_data
 
 # Folder
 fn = './2405_mst_example/mst_example.xlsx'
