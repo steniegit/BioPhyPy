@@ -430,8 +430,8 @@ class BLI_data:
     def export_txt(self, sensors=[], steps=[], prefix='export', delimiter='\t', precision='%10.3e'):
         '''
         Export csv of sensors to the parental data folder
-        sensors: List of sensors, if empty all are used
-        steps:   List of steps, if empty all are used
+        sensors: List of sensors (starts with 0!), if empty all are used
+        steps:   List of steps (starts with 0!), if empty all are used
         prefix:  Prefix for file name
         delimiter: Delimiter for txt
         precision: Number format for export, default %10.3e
