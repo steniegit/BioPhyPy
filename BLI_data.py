@@ -427,6 +427,42 @@ class BLI_data:
         ax.set_ylabel('Response / nm')
         return fig, ax
 
+    def export_txt(self, sensors=[], steps=[], prefix='export', delimiter='\t', precision='%10.3e'):
+        '''
+        Export csv of sensors to the parental data folder
+        sensors: List of sensors, if empty all are used
+        steps:   List of steps, if empty all are used
+        prefix:  Prefix for file name
+        delimiter: Delimiter for txt
+        precision: Number format for export, default %10.3e
+        '''
+        if len(sensors) < 1:
+            sensors = range(self.no_sensors)
+        if len(steps) < 1 :
+            steps = range(self.no_steps)
+        # Sanity check for steps, have to be consecutive
+        if np.any(np.diff(steps) != 1):
+            print("Steps have to be consecutive!")
+            print("Cannot do export")
+            return None
+        # Loop through sensors and export
+        for sensor in sensors:
+            # Create new list for xs and ys
+            xs = [self.xs[sensor][step] for step in steps]
+            ys = [self.ys[sensor][step] for step in steps]
+            # Now concetanate
+            xs = np.concatenate(xs)
+            ys = np.concatenate(ys)
+            # Create one array with x and y
+            xys = np.stack((xs,ys), axis=1)
+            # Save cvs
+            np.savetxt(self.folder + '/%s_sensor%i_step%i-%i.txt' % (prefix, sensor, steps[0], steps[1]), xys,
+                       delimiter=delimiter, fmt=precision)
+            print("Exported file to %s/%s_sensor%i_step%i-%i.txt" % (self.folder, prefix, sensor, steps[0], steps[1]))
+        return None
+            
+            
+
 
     def fit_data(self, sensors=[0], step_assoc=3, step_dissoc=4, func='biexp', plot=True, order='a', norm=True):
         '''
