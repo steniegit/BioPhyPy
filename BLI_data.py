@@ -464,7 +464,7 @@ class BLI_data:
             
 
 
-    def fit_data(self, sensors=[0], step_assoc=3, step_dissoc=4, func='biexp', plot=True, order='a', norm=True):
+    def fit_data(self, sensors=[0], step_assoc=3, step_dissoc=4, func='biexp', plot=True, order='a', norm=True, export_txt=False, prefix='export', delimiter='\t', precision='%10.3e'):
         '''
         Fit rise and decay for data
         sensors: List of sensors
@@ -472,6 +472,10 @@ class BLI_data:
         step_dissoc: Dissociation step
         func: 'biexp' oder 'monoexp'
         plot: Plot result
+        export_txt: Export txt with fits for association and dissociation
+        prefix: Prefix for filename when export_txt is used
+        delimiter: Delimiter for text file when export_txt is used
+        precision: Format for numbers when export_txt is used
         '''
         # Get color cycle
         cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
@@ -548,6 +552,20 @@ class BLI_data:
                 print("Sensor %i: Determined Kd of %.1e M" % (sensor, Kd))
             else:
                pass
+            # Export if chosen
+            if export_txt:
+                # Create table with x and y files for association
+                assoc_xy = np.stack((assoc_time, assoc, fitted_assoc), axis=1)
+                dissoc_xy = np.stack((dissoc_time, dissoc, fitted_dissoc), axis=1)
+                # Headers
+                assoc_header = "Association: time/s, response, fit"
+                dissoc_header = "Dissociation: time/s, response, fit"
+                np.savetxt(self.folder + '/%s_assoc_sensor%i.txt' % (prefix, sensor),
+                           assoc_xy, delimiter=delimiter, fmt=precision, header=assoc_header)
+                print("Association data + fit saved as %s/%s_assoc_sensor%i.txt" % (self.folder, prefix, sensor))
+                np.savetxt(self.folder + '/%s_dissoc_sensor%i.txt' % (prefix, sensor),
+                           dissoc_xy, delimiter=delimiter, fmt=precision, header=dissoc_header)
+                print("Dissociation data + fit saved as %s/%s_dissoc_sensor%i.txt" % (self.folder, prefix, sensor))
             # Plot results
             if plot:
                 fig, ax = plt.subplots(1)
