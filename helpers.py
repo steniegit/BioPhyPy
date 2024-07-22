@@ -123,7 +123,7 @@ def hill_model(conc_lig, kd, n, t_bottom, t_top):
     return t_bottom + (t_top-t_bottom)* ((conc_lig)**n)/ (kd+conc_lig**n)
 
 
-def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True, ptitle='', leg='', save_all=False, loading=np.NaN, ref_sensor=None, ref_subtract=None, flip=False, denorm=False, output_txt=False):
+def fit_octet(folder, sensor=0, seg_rise=3, seg_decay=4, func='biexp', plot=True, conc=1E-6, order='a', norm=True, ptitle='', leg='', save_all=False, loading=np.nan, ref_sensor=None, ref_subtract=None, flip=False, denorm=False, output_txt=False):
     '''
     Wrapper script to determine KD from 
     Octet data
