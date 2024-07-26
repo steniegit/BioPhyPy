@@ -167,6 +167,36 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         # Load excel file
         # this needs to be the processed file!
         xls = pd.ExcelFile(self.folder + '/' + self.fn)
+        # Check if file was generated from Prometheus Panta
+        # Load overview with capillary/sample information
+        metadata = pd.read_excel(xlsx, 'Overview', index_col=None, header=0)
+        self.metadata = metadata
+        # Check if data is from Prometheus or Panta
+        # Load data
+        if 'Data Export' in xls.sheet_names:
+            # For Panta
+            print("Panta file format detected")
+            self.load_panta(xlsx)
+        else:
+            # For Prometheus
+            self.load_prometheus(xlsx)
+        # Save signal and concs
+        self.save_signal()
+        # Also export full data
+        # self.fluo_full = np.array(dat.iloc[3:,sort_fluo])
+        print("Loaded xls file")
+        # Try to load previous fit parameters if desired
+        if load_fit:
+            print("Try to load fit parameters")
+            self.load_fit_fluo()
+        # Initialize outlier indices
+        self.inds_in = np.ones(self.fluo.shape[1])==1
+        
+        return None
+
+    def load_prometheus(self, xlsx):
+        '''
+        '''
         dat = pd.read_excel(xls, self.which, index_col=None, header=None)
 
         # If the capillary argument was selected, select those columns
@@ -223,18 +253,43 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             self.sample_comment = np.array(dat.iloc[0,1:])
         # Extract capillary numbers
         self.capillary_no = np.array(dat.iloc[0, sort_fluo])
-        # Save signal and concs
-        self.save_signal()
-        # Also export full data
-        # self.fluo_full = np.array(dat.iloc[3:,sort_fluo])
-        print("Loaded xls file")
-        # Try to load previous fit parameters if desired
-        if load_fit:
-            print("Try to load fit parameters")
-            self.load_fit_fluo()
-        # Initialize outlier indices
-        self.inds_in = np.ones(self.fluo.shape[1])==1
         return None
+
+    def load_panta(self, xlsx):
+        '''
+
+        '''
+        dat = pd.read_xlsx(xlsx, 'Data Export', index_col=None, header=0)
+
+        # Determine which dataset needs to be generated
+        if which=='Ratio':
+            cols_pos = [dat.columns.get_loc(col) for col in dat if col.startswith('Ratio')]
+        elif which=='350nm':
+            cols_pos = [dat.columns.get_loc(col) for col in dat if col.startswith('350 nm')]
+        elif which=='330nm':
+            cols_pos = [dat.columns.get_loc(col) for col in dat if col.startswith('330 nm')]
+        elif which=='Scattering':
+            cols_pos = [dat.columns.get_loc(col) for col in dat if col.startswith('Scattering')]
+        cols_pos = np.array(cols_pos)
+
+        # Get temperatures
+        temps = np.array(dat.iloc[:, cols_pos-1])
+        specs = np.array(dat.iloc[:, cols_pos])
+
+        # Temps
+        n_points = temps.shape[0]
+        min_temp = int(np.min(temps))
+        max_temp = int(np.max(temps))
+        temp_int = np.linspace(min_temp, max_temp+1, n_points)
+
+        # Extract columns
+        # Interpolate column by column
+        for i in range(specs.shape[1]):
+            specs[:,i] = np.interp(temp_int, temps[:,i], specs[:,i])
+
+        # Fill instance
+        self.temps = temp_int
+        self.fluo = specs
 
     def load_thermofluor(self, fn='', fn_concs='', concs=[], caps=[], window=[], outliers=[], load_fit=False):
         '''
