@@ -171,14 +171,14 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         # this needs to be the processed file!
         xlsx = pd.ExcelFile(self.folder + '/' + self.fn)
         # Check if file was generated from Prometheus Panta
-        # Load overview with capillary/sample information
-        metadata = pd.read_excel(xlsx, 'Overview', index_col=None, header=0)
-        self.metadata = metadata
         # Check if data is from Prometheus or Panta
         # Load data
         if 'Data Export' in xlsx.sheet_names:
             # For Panta
             print("Panta file format detected")
+            # Load overview with capillary/sample information
+            metadata = pd.read_excel(xlsx, 'Overview', index_col=None, header=0)
+            self.metadata = metadata
             self.load_panta(xlsx)
         else:
             # For Prometheus
@@ -295,6 +295,8 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         self.fluo = specs
         # Get capillary number and sample ID
         self.sample_ID = np.array(self.metadata['Capillary'])
+        # To keep the same style as the previous Prometheus
+        self.capillary_no = np.array(self.metadata['Capillary'])
         self.sample_comment = np.array(self.metadata['Sample ID'])
         self.solven = np.array(self.metadata['Solvent'])
 
@@ -464,7 +466,7 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         into the current one
         '''
         # Check if dataset is DSF_Fit module
-        if dataset.__module__ != 'DSF_fit':
+        if dataset.__module__.split('.')[-1] != 'DSF_fit':
             print("Dataset is no DSF_fit instance! Will not merge")
             return None
         # Check that dimensions are the same
