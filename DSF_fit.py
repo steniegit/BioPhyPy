@@ -273,6 +273,10 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             cols_pos = [dat.columns.get_loc(col) for col in dat if col.startswith('330 nm')]
         elif self.which=='Scattering':
             cols_pos = [dat.columns.get_loc(col) for col in dat if col.startswith('Scattering')]
+        elif self.which=='Turbidity':
+            cols_pos = [dat.columns.get_loc(col) for col in dat if col.startswith('Turbidity')]
+        elif self.which == 'Cumulant Radius':
+            cols_pos = [dat.columns.get_loc(col) for col in dat if col.startswith('Cumulant Radius')]
         cols_pos = np.array(cols_pos)
 
         # Get temperatures
