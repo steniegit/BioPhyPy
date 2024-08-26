@@ -285,8 +285,8 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
 
         # Temps
         n_points = temps.shape[0]
-        min_temp = int(np.min(temps))
-        max_temp = int(np.max(temps))
+        min_temp = int(np.nanmin(temps))
+        max_temp = int(np.nanmax(temps))
         temp_int = np.linspace(min_temp, max_temp+1, n_points)
 
         # Extract columns
@@ -1119,7 +1119,8 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
     def plot_fluo(self, fig='', ax='', save_fig=True):
         '''
         This functions generates a plot with
-        the fluorescence/scattering data
+        the fluorescence/scattering data with the respective ligand
+        concentration in a color map
         fig: figure handle (e.g. when using inside GUI)
         ax: axis handle, plot will be placed there
         save_fig: Save figure as pdf and png
@@ -2292,20 +2293,25 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             #self.concs = self.concs[self.inds_in]
             #self.local_fit_params = self.local_fit_params[:, self.inds_in]
             #self.local_fit_errorsg = self.local_fit_errors[:, self.inds_in]
-            return None
-
-    def plot_derivative(self, save_fig=True, legend=False, colormap=False, legend_out=True, show_tms=False):
+            return None      
+        
+    def plot_derivative(self, save_fig=True, legend=False, colormap=False, legend_out=True, show_tms=False, linestyle='-', no_deriv=False):
         '''
         This function creates a plot with the intensities (first panel) and the
         first derivative (second panel)
         legend: show legend instead of color bar
         colormap: Use continous colormap, otherwise use discrete color cycle 
         legend_out: If true place legend next to plot (right side)
+        no_deriv: do not plot second panel with derivatives
         '''
         print("\nPlot fluorescence or scattering with derivatives")
-        fig, axs = plt.subplots(2, sharex=True, figsize=[8,5])
-        ax = axs[0]
-        ax2 = axs[1]
+        if no_deriv:
+            fig, axs = plt.subplots(1, sharex=True, figsize=[8,5])
+            ax = axs
+        else:
+            fig, axs = plt.subplots(2, sharex=True, figsize=[8,5])
+            ax = axs[0]
+            ax2 = axs[1]
         # Make sure that concs and fluo are sorted
         # This can not be the case if the data is directly
         # copied to the instance
@@ -2342,8 +2348,9 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
                 j = int(np.argwhere(np.array(IDs) == self.sample_comment[i]).squeeze())
                 color = colors[j]
                 temp_temps.append(self.tms[i])
-                ax.plot(self.temps, self.fluo[:, i], alpha=self.plot_alpha, lw=self.plot_lw, color=color)
-                ax2.plot(self.temps, self.fluo_deriv[:, i]*fact, alpha=self.plot_alpha, lw=self.plot_lw, color=color)
+                ax.plot(self.temps, self.fluo[:, i], alpha=self.plot_alpha, lw=self.plot_lw, color=color, linestyle=linestyle)
+                if not no_deriv:
+                    ax2.plot(self.temps, self.fluo_deriv[:, i]*fact, alpha=self.plot_alpha, lw=self.plot_lw, color=color, linestyle=linestyle)
                 #print(temp_temps)
                 # Set temps back to empty list
                 temp_temps = []
@@ -2352,12 +2359,14 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
                 # Define color from map
                 if colormap:
                     color = cmap.__next__()
-                    temp, = ax.plot(self.temps, self.fluo[:, i], label=self.sample_comment[i], alpha=self.plot_alpha, lw=self.plot_lw, color=color)
-                    temp, = ax2.plot(self.temps, self.fluo_deriv[:, i]*fact, label=self.sample_comment[i], alpha=self.plot_alpha, lw=self.plot_lw, color=color)
+                    temp, = ax.plot(self.temps, self.fluo[:, i], label=self.sample_comment[i], alpha=self.plot_alpha, lw=self.plot_lw, color=color, linestyle=linestyle)
+                    if not no_deriv:
+                        temp, = ax2.plot(self.temps, self.fluo_deriv[:, i]*fact, label=self.sample_comment[i], alpha=self.plot_alpha, lw=self.plot_lw, color=color, linestyle=linestyle)
                 # Or use normal color cycle
                 else:
-                    temp, = ax.plot(self.temps, self.fluo[:, i], label=self.sample_comment[i], alpha=self.plot_alpha, lw=self.plot_lw) #, color=color)
-                    temp, = ax2.plot(self.temps, self.fluo_deriv[:, i]*fact, label=self.sample_comment[i], alpha=self.plot_alpha, lw=self.plot_lw) #, color=color)
+                    temp, = ax.plot(self.temps, self.fluo[:, i], label=self.sample_comment[i], alpha=self.plot_alpha, lw=self.plot_lw, linestyle=linestyle) #, color=color)
+                    if not no_deriv:
+                        temp, = ax2.plot(self.temps, self.fluo_deriv[:, i]*fact, label=self.sample_comment[i], alpha=self.plot_alpha, lw=self.plot_lw, linestyle=linestyle) #, color=color)
                 IDs.append(self.sample_comment[i])
                 colors.append(temp.get_color())
                 temp_temps.append(self.tms[i])
@@ -2367,8 +2376,9 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             # Plot dotted lines for Tm if desired
             if show_tms:
                 ax.axvline(self.tms[i], color=temp.get_color(), linestyle='--', zorder=-20, lw=self.plot_lw)
-                ax2.axvline(self.tms[i], color=temp.get_color(), linestyle='--', zorder=-20, lw=self.plot_lw)
-        axs[1].set_xlabel('Temperature / $^\circ$C')
+                if not no_deriv:
+                    ax2.axvline(self.tms[i], color=temp.get_color(), linestyle='--', zorder=-20, lw=self.plot_lw)
+                    ax2.set_xlabel('Temperature / $^\circ$C')
         if 'Ratio' in self.which:
             ax.set_ylabel('Fluo. ratio (350/330)')
         elif '350nm' in self.which:
@@ -2383,10 +2393,11 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             ax.set_ylabel('Simulated fluorescence intensity / a.u')
             ax.yaxis.set_ticks([])
             ax.text(np.min(self.temps)+2, np.max(self.fluo), '%s%% noise' % self.noise, va='top', ha='left', bbox=dict(facecolor='gray', alpha=0.5), fontsize=20)
-        if fact==1:
-            axs[1].set_ylabel('1st deriv.')
-        else:
-            axs[1].set_ylabel('1st deriv. * %i' % fact)
+        if not no_deriv:
+            if fact==1:
+                ax2.set_ylabel('1st deriv.')
+            else:
+                ax2.set_ylabel('1st deriv. * %i' % fact)
         # # Add box
         # boxmin = .98*np.min(self.fluo)
         # boxmax = 1.02*np.max(self.fluo)
@@ -2401,11 +2412,13 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         scalarmappaple.set_array(self.concs[self.concs > 0])
         if legend:
             if legend_out:
-                axs[0].legend(bbox_to_anchor=(1.05, 1))
-                axs[1].legend(bbox_to_anchor=(1.05, 1))
+                ax.legend(bbox_to_anchor=(1.05, 1))
+                if not no_deriv:
+                    ax2.legend(bbox_to_anchor=(1.05, 1))
             else:
-                axs[0].legend()
-                axs[1].legend()
+                ax.legend()
+                if not no_deriv:
+                    ax2.legend()
             #axs[0].legend(loc = 'lower center', bbox_to_anchor = (0,-0.1,1,1), bbox_transform = fig.transFigure )
             #axs[1].legend(loc = 'lower center', bbox_to_anchor = (0,-0.1,1,1), bbox_transform = fig.transFigure ))
         else:
@@ -2414,9 +2427,10 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
                 cbar = plt.colorbar(scalarmappaple, ax=ax)
                 cbar.set_label('Ligand conc. / M', rotation=270)
                 cbar.ax.get_yaxis().labelpad = 15
-                cbar2 = plt.colorbar(scalarmappaple, ax=ax2)
-                cbar2.set_label('Ligand conc. / M', rotation=270)
-                cbar2.ax.get_yaxis().labelpad = 15
+                if not no_deriv:
+                    cbar2 = plt.colorbar(scalarmappaple, ax=ax2)
+                    cbar2.set_label('Ligand conc. / M', rotation=270)
+                    cbar2.ax.get_yaxis().labelpad = 15
         # Set window title
         fig.canvas.manager.set_window_title(self.which)
         # Save figure
