@@ -2378,7 +2378,10 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
                 ax.axvline(self.tms[i], color=temp.get_color(), linestyle='--', zorder=-20, lw=self.plot_lw)
                 if not no_deriv:
                     ax2.axvline(self.tms[i], color=temp.get_color(), linestyle='--', zorder=-20, lw=self.plot_lw)
-                    ax2.set_xlabel('Temperature / $^\circ$C')
+            if not no_deriv:
+                ax2.set_xlabel('Temperature / $^\circ$C')
+            else:
+                ax.set_xlabel('Temperature / $^\circ$C')
         if 'Ratio' in self.which:
             ax.set_ylabel('Fluo. ratio (350/330)')
         elif '350nm' in self.which:
@@ -2389,6 +2392,11 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             ax.set_ylabel('Scattering / a.u.')
         elif 'RFU' in self.which:
             ax.set_ylabel('RFU / a.u.')
+        elif 'Cumulant Radius' in self.which:
+            ax.set_ylabel('Cumulant Radius / nm')
+            ax.set_yscale('log')
+        elif 'Turbidity' in self.which:
+            ax.set_ylabel('Turbidity counts')
         elif 'Simulated' in self.which:
             ax.set_ylabel('Simulated fluorescence intensity / a.u')
             ax.yaxis.set_ticks([])
