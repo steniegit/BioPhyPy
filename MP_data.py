@@ -115,6 +115,7 @@ class MP_data:
         self.dra = np.mean(video[self.frame_no+1:self.frame_no+1+ratiometric_size//2], axis=0) / np.mean(video[self.frame_no-ratiometric_size//2:self.frame_no], axis=0) - 1
         # Center
         self.dra -= np.median(self.dra)
+        self.image = video[self.frame_no]
         # Only obtain events in frame range
         print(self.frame_no)
         self.events = events[events['frame_ind'].between(self.frame_no-frame_range, self.frame_no+frame_range)]
@@ -123,6 +124,59 @@ class MP_data:
         self.show_image = True
         return None
 
+    def plot_frame(self, show_circles=True, show_values=True, contrasts=False, image_type='ratiometric', fn='', fs=18):
+        '''
+        Plots frame
+        Analyze_movie has to be run before
+        show_circles: Show circles around events
+        show_values: Show mass or contrast values for events
+        contrasts: Show contrast values for circles
+        image_type: 'ratiometric' or 'native'
+        fn: Filename for figure
+        fs: fontsize for labels
+        '''
+        # Sanity check
+        if self.show_image == False:
+            print('Need to run analyze_movie first')
+            return None
+        # Create figure
+        fig, ax = plt.subplots(1)
+        if image_type == 'ratiometric':
+            ax.imshow(self.dra)
+        elif image_type == 'native':
+            ax.imshow(self.image)
+        else:
+            print("Please choose 'ratiometric' or 'native' for image_type")
+            return None
+        # Adjust dimensions of figure
+        fig.set_figheight(fig.get_figwidth() * self.dra.shape[0] / self.dra.shape[1])
+        ax.set_position([0,0, 1,1])
+        ax.axis('off')
+        # Cycle through events and plot circles and labels
+        for event in self.events.iterrows():
+            event = event[1]
+            if event['frame_ind'] == self.frame_no:
+                alpha = 1
+            elif np.abs(event['frame_ind'] - self.frame_no) == 1:
+                alpha = 0.5
+            elif np.abs(event['frame_ind'] - self.frame_no) == 2:
+                alpha = 0.25
+            else:
+                alpha= 0.1
+            if show_circles:
+                circ = Circle((int(event['x_coords']), int(event['y_coords'])), 5, fc='None', ec='red', lw=2, alpha=alpha)
+                ax.add_patch(circ)
+            if show_values:
+                if contrasts:
+                    ax.text(int(event['x_coords']), int(event['y_coords'])+5, "%2.2E" % event['contrasts'], ha='center', va='top', fontsize=fs)
+                else:
+                    ax.text(int(event['x_coords']), int(event['y_coords'])+5, int(event['kDa']), ha='center', va='top', fontsize=fs)
+        # Save file
+        if fn != '':
+            fig.savefig(fn)
+        return fig, ax
+        
+        
     def write_parameters(self, fn=''):
         '''
         Function to export processing/plotting parameters
@@ -545,7 +599,7 @@ class MP_data:
                 y0 = ylims[0] + .4*y_space + self.image_yoffset
                 y_size = .9*.6*y_space * self.image_scale
             # # Draw image
-            axin = ax.inset_axes([x0, y0, x_size, y_size],transform=ax.transData, alpha=.5)    # create new inset axes in data coordinates
+            axin = ax.inset_axes([x0, y0, np.abs(x_size), np.abs(y_size)],transform=ax.transData, alpha=.5)    # create new inset axes in data coordinates
             # Determine limits for plot
             im_min = np.min(self.dra)
             im_max = np.max(self.dra)
@@ -568,7 +622,10 @@ class MP_data:
                     alpha= 0.1
                 circ = Circle((int(event['x_coords']), int(event['y_coords'])), 5, fc='None', ec='red', lw=2, alpha=alpha)
                 axin.add_patch(circ)
-                axin.text(int(event['x_coords']), int(event['y_coords'])+5, int(event['kDa']), ha='center', va='top', fontsize=6)
+                if contrasts:
+                    axin.text(int(event['x_coords']), int(event['y_coords'])+5, "%2.2E" % event['contrasts'], ha='center', va='top', fontsize=6)
+                else:
+                    axin.text(int(event['x_coords']), int(event['y_coords'])+5, int(event['kDa']), ha='center', va='top', fontsize=6)
             # Plot positions if chosen
             if self.show_lines:
                 for event in self.events.iterrows():
@@ -582,7 +639,10 @@ class MP_data:
                         alpha = 0.25
                     else:
                         alpha= 0.1
-                    ax.axvline(event['kDa'], alpha=alpha, linestyle=':', color='red', linewidth=1.5)
+                    if contrasts:
+                        ax.axvline(event['contrasts'], alpha=alpha, linestyle=':', color='red', linewidth=1.5)
+                    else:
+                        ax.axvline(event['kDa'], alpha=alpha, linestyle=':', color='red', linewidth=1.5)
         return fig, ax
     
     def fit_histo(self, xlim=[], guess_pos=[], tol=None, max_width=None, weighted=False, weighted_width=None, contrasts=False, cutoff=0, fit_points=1000):
