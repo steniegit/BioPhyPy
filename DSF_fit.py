@@ -2295,7 +2295,7 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             #self.local_fit_errorsg = self.local_fit_errors[:, self.inds_in]
             return None      
         
-    def plot_derivative(self, save_fig=True, legend=False, colormap=False, legend_out=True, show_tms=False, linestyle='-', no_deriv=False):
+    def plot_derivative(self, save_fig=True, legend=False, colormap=False, legend_out=True, show_tms=False, linestyle='-', no_deriv=False, axs=[]):
         '''
         This function creates a plot with the intensities (first panel) and the
         first derivative (second panel)
@@ -2303,15 +2303,24 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         colormap: Use continous colormap, otherwise use discrete color cycle 
         legend_out: If true place legend next to plot (right side)
         no_deriv: do not plot second panel with derivatives
+        axs: List of axes for plotting derivative
         '''
         print("\nPlot fluorescence or scattering with derivatives")
-        if no_deriv:
-            fig, axs = plt.subplots(1, sharex=True, figsize=[8,5])
-            ax = axs
+        if len(axs)==0:
+            if no_deriv:
+                fig, axs = plt.subplots(1, sharex=True, figsize=[8,5])
+                ax = axs
+            else:
+                fig, axs = plt.subplots(2, sharex=True, figsize=[8,5])
+                ax = axs[0]
+                ax2 = axs[1]
         else:
-            fig, axs = plt.subplots(2, sharex=True, figsize=[8,5])
-            ax = axs[0]
-            ax2 = axs[1]
+            if no_deriv:
+                ax = axs[0]
+            else:
+                ax = axs[0]
+                ax2 = axs[1]
+            fig = axs[0].axes.get_figure()
         # Make sure that concs and fluo are sorted
         # This can not be the case if the data is directly
         # copied to the instance
