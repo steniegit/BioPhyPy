@@ -132,6 +132,26 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             print("Loaded concentrations from %s/sample_concs.txt" % self.folder)
         return None
 
+    def crop_temp_window(self, window=None):
+        '''
+        This crops the data below and above the limits specified
+        '''
+        # Overwrite window if specified, otherwise leave it unchanged
+        if len(window) == 2:
+            self.window = window
+        if len(self.window) == 2:
+            # First three rows are comments
+            ind_lower = np.argmin(np.abs(self.temps - self.window[0]))
+            ind_upper = np.argmin(np.abs(self.temps - self.window[1])) 
+        else:
+            # Otherwise do nothing
+            return None
+        # Change arrays
+        self.temps = self.temps[ind_lower:ind_upper]
+        self.fluo = self.fluo[ind_lower:ind_upper, :]
+        return None
+        
+
     ## Loading functions
     def load_xlsx(self, fn='', fn_concs='', concs=[], caps=[], window=[], which='Ratio', load_fit=True,outliers=[]):
         '''
@@ -162,7 +182,7 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         self.get_concs(concs, fn_concs)
         
         # Temperature window to extract data
-        self.window = window
+        self.window = np.sort(window)
         # Which data to use
         self.which = which
         # Outliers
@@ -183,6 +203,8 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         else:
             # For Prometheus
             self.load_prometheus(xlsx)
+        # Cut window
+        self.crop_temp_window(window=window)
         # Save signal and concs
         self.save_signal()
         # Also export full data
@@ -194,7 +216,6 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             self.load_fit_fluo()
         # Initialize outlier indices
         self.inds_in = np.ones(self.fluo.shape[1])==1
-        
         return None
 
     def load_prometheus(self, xlsx):
@@ -218,14 +239,9 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             print('Please choose which keyword: Ratio, 350nm, 330nm, Scattering or RFU')
             return None
         
-        # Indices for extracting only desired temp window
-        if len(self.window) == 2:
-            # First three rows are comments
-            ind_lower = np.unique(np.argmin(np.abs(np.array(dat.iloc[first_row:, first_column]) - self.window[0])))[0] + first_row
-            ind_upper = np.unique(np.argmin(np.abs(np.array(dat.iloc[first_row:, first_column]) - self.window[1])))[0] + first_row
-        else:
-            ind_lower = first_row
-            ind_upper = -1
+        # Indices for extracting the whole range
+        ind_lower = first_row
+        ind_upper = -1
         # Create sample_concs.txt
         sort_ind = np.argsort(self.concs)
         # Take out outliers
