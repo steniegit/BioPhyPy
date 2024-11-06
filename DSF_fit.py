@@ -1022,7 +1022,7 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             
         return None
 
-    def fit_tms(self, fit='single'):
+    def fit_tms(self, fit='alt'):
         '''
         Fit melting temperatures to get apparent Kd
 
@@ -1078,6 +1078,12 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         # Do fit
         fit_params, cov = curve_fit(kd_func, self.concs, self.tms, p0=p0, maxfev = 10000)
         model = kd_func(self.concs, *fit_params)
+        # Create auxiliary function that uses only the concentration as parameter
+        def model_conc(fit_params):
+            def return_func(conc_lig):
+                return kd_func(conc_lig, *fit_params)
+            return return_func
+        self.tms_fit_func = model_conc(fit_params)
         # Calculate R2
         r2 = r2_score(self.tms, model)
         # Create dictionary with results
@@ -2311,7 +2317,7 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             #self.local_fit_errorsg = self.local_fit_errors[:, self.inds_in]
             return None      
         
-    def plot_derivative(self, save_fig=True, legend=False, colormap=False, legend_out=True, show_tms=False, linestyle='-', no_deriv=False, axs=[]):
+    def plot_derivative(self, save_fig=True, legend=False, colormap=False, legend_out=True, show_tms=False, linestyle='-', no_deriv=False, axs=[], map='viridis'):
         '''
         This function creates a plot with the intensities (first panel) and the
         first derivative (second panel)
@@ -2320,6 +2326,7 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         legend_out: If true place legend next to plot (right side)
         no_deriv: do not plot second panel with derivatives
         axs: List of axes for plotting derivative
+        map: colormap ('viridis' or 'jet')
         '''
         print("\nPlot fluorescence or scattering with derivatives")
         if len(axs)==0:
@@ -2353,7 +2360,13 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             self.calc_fluo_deriv()
             self.tms_from_derivatives()
         # Define color map
-        cmap = iter(plt.cm.viridis(np.linspace(0, 1, 1+len(np.unique(self.concs)))))
+        if map=='jet':
+            cm = plt.cm.jet
+        elif map=='viridis':
+            cm = plt.cm.viridis
+        else:
+            cm = plt.cm.viridis
+        cmap = iter(cm(np.linspace(0, 1, 1+len(np.unique(self.concs)))))
         # ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), handles=lh, title="Ligand concentration")
         ax.set_xlim([self.temps[0], self.temps[-1]])
         # Plot
