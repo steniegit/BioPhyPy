@@ -1022,7 +1022,7 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             
         return None
 
-    def fit_tms(self, fit='single'):
+    def fit_tms(self, fit='alt'):
         '''
         Fit melting temperatures to get apparent Kd
 
