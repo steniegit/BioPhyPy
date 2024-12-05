@@ -1412,3 +1412,12 @@ def combine_dicts(list_dicts):
     for key in list_dicts[0].keys():
         new_dict[key] = [one_dict[key] for one_dict in list_dicts]
     return new_dict
+
+def langmuir_isotherm(L, R_max, K_D):
+    '''
+    Langmuir isotherm
+    L:     ligand concentration
+    R_max: Maximum binding response 
+    K_D:   Dissociation constant
+    '''
+    return (R_max * L) / (K_D + L)

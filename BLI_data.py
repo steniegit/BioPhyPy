@@ -617,7 +617,54 @@ class BLI_data:
             print('Sensor %i' % sensor)
         
         return None
+
+    def steady_state_fit(self, step=3, average=10, sensors=[], plot=True):
+        '''
+        Steady-state fit using Langmuir isotherm
+        step: Which step use for fit
+        average: Number of points to use at end of step for averaging response
+        '''
+        # Select function
+        func = langmuir_isotherm
+        # Select sensors
+        if len(sensors) <1:
+            sensors = range(len(self.fns))
+        # Create dictionary with info
+        self.steadystate = {'step': step, 'average': average, 'sensors': sensors}
+        # Get concs and rs
+        concs, rs = [], []
+        for sensor in sensors:
+            rs.append(np.mean(self.ys[sensor][step][(-1)*average:]))
+            concs.append(self.step_info[sensor]['MolarConcentration_M'][step])
+        exp = [concs, rs]
+        exp = np.array(exp).T
+        self.steadystate['exp_values'] = exp
+        # Start values for fit
+        initial_guess = [np.max(rs), np.median(concs)]
+        # Curve fitting
+        popt, pcov = curve_fit(func, concs, rs, p0=initial_guess)
+        self.steadystate['fit_results'] = {'popt': popt, 'pcov': pcov}
+        # Create x values for fit
+        start = np.log10(np.min(concs)/2)
+        stop = np.log10(np.max(concs)*2)
+        xs = np.logspace(start, stop, 100)
+        ys = func(xs, *popt)
+        fit_points = np.array([xs, ys]).T
+        self.steadystate['fit_points'] = fit_points
+        # Create figure
+        if plot:
+            fig, ax = plt.subplots(1)
+            ax.semilogx(xs, ys, label='Fit: K$_d=$%3.0f nM' % (1E9*popt[1]))
+            ax.semilogx(concs, rs, 'o', label='Exp. values')
+            ax.set_xlabel('Ligand concentration / M')
+            ax.set_ylabel('Response / nm')
+            ax.legend()
         
+        
+        if plot:
+            return fig, ax
+        else:
+            return None, None
             
 
             
