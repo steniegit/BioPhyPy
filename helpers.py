@@ -467,29 +467,53 @@ def output_fit(fitvalues_rise, fitvalues_decay, r2_rise=np.nan, r2_decay=np.nan,
 def exp_rise(x, k, c):
     return c*(1 - np.exp(-k*x))
 
+def exp_rise_xoff(x, k, c, xoff):
+    return c*(1 - np.exp(-k*(x-xoff)))
+
 def exp_decay(x, k, c):
     return c*np.exp(-k*x)
+
+def exp_decay_xoff(x, k, c, xoff):
+    return c*np.exp(-k*(x-xoff))
     
 def biexp_rise(x, a1, a2, k1, k2, c):
     return c*(1 - a1*np.exp(-k1*x) - a2*np.exp(-k2*x))
 
+def biexp_rise_xoff(x, a1, a2, k1, k2, c, xoff):
+    return c*(1 - a1*np.exp(-k1*(x-xoff)) - a2*np.exp(-k2*(x-xoff)))
+
 # might need one with a pre-exponential factor if decay starts with a value other than 1.0
 def biexp_decay(x, a1, a2, k1, k2, c):
     return c*(a1*np.exp(-k1*x) + a2*np.exp(-k2*x))
+
+def biexp_decay_xoff(x, a1, a2, k1, k2, c, xoff):
+    return c*(a1*np.exp(-k1*(x-xoff)) + a2*np.exp(-k2*(x-xoff)))
 
 ## Offset versions
 
 def exp_rise_offset(x, k, c, offset):
     return c*(1 - np.exp(-k*x))+offset
 
+def exp_rise_offset_xoff(x, k, c, offset, xoff):
+    return c*(1 - np.exp(-k*(x-xoff)))+offset
+
 def exp_decay_offset(x, k, c, offset):
     return c*np.exp(-k*x) + offset
+
+def exp_decay_offset_xoff(x, k, c, offset, xoff):
+    return c*np.exp(-k*(x-xoff)) + offset
     
 def biexp_rise_offset(x, a1, a2, k1, k2, c, offset):
     return c*(1 - a1*np.exp(-k1*x) - a2*np.exp(-k2*x)) + offset
 
+def biexp_rise_offset_xoff(x, a1, a2, k1, k2, c, offset, xoff):
+    return c*(1 - a1*np.exp(-k1*(x-xoff)) - a2*np.exp(-k2*(x-xoff))) + offset
+
 def biexp_decay_offset(x, a1, a2, k1, k2, c, offset):
     return c*(a1*np.exp(-k1*x) + a2*np.exp(-k2*x)) + offset
+
+def biexp_decay_offset_xoff(x, a1, a2, k1, k2, c, offset):
+    return c*(a1*np.exp(-k1*(x-xoff)) + a2*np.exp(-k2*(x-xoff))) + offset
 
 ##### End: kinetic functions from Godfrey
 

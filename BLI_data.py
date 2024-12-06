@@ -12,6 +12,7 @@ from scipy.optimize import curve_fit
 from .helpers import etree_to_dict, combine_dicts
 import matplotlib.pyplot as plt
 from .helpers import *
+from functools import partial
 
 # To do
 
@@ -399,6 +400,16 @@ class BLI_data:
                     ax.plot(self.xs[sensor][step], self.ys[sensor][step], linestyle, color=color, alpha=alpha)
                 # Plot dashed lines for limits
                 ax.axvline(self.assay_time_cum[step], linestyle='--', color='gray', lw=.5)
+            # Check if fits are available and plot them
+            if hasattr(self, 'fit_results'):
+                fit_results = self.fit_results
+                if sensor in fit_results:
+                    fit_results = self.fit_results[sensor]
+                    # Check for association
+                    if 'fitted_assoc' in fit_results:
+                        ax.plot(fit_results['fitted_assoc'][:,0], fit_results['fitted_assoc'][:,1], ':', color='k')
+                    if 'fitted_dissoc' in fit_results:
+                        ax.plot(fit_results['fitted_dissoc'][:,0], fit_results['fitted_dissoc'][:,1], ':', color='k')
         # Plot legend
         if len(legend_entries) > 0:
             ax.legend()
@@ -461,11 +472,72 @@ class BLI_data:
             print("Exported file to %s/%s_sensor%i_step%i-%i.txt" % (self.folder, prefix, sensor, steps[0], steps[1]))
         return None
             
-            
 
-
-    def fit_data(self, sensors=[0], step_assoc=3, step_dissoc=4, func='biexp', plot=True, order='a', norm=True, export_txt=False, prefix='export', delimiter='\t', precision='%10.3e'):
+    def fit_kinetics(self, sensors=[0], step_assoc=3, step_dissoc=4, func='monoexp', which='assoc'):
         '''
+        Kinetics fit that can be used for plotting as well
+        sensors: list of sensors to fit
+        sensors: List of sensors
+        step_assoc: Association step
+        step_dissoc: Dissociation step
+        func: 'biexp' oder 'monoexp'
+        which: 'assoc'iation, 'diss'ociation or 'both'
+        '''
+        # Create instance with fit results if not already there
+        if not hasattr(self, 'fit_results'):
+                self.fit_results = {}
+        for sensor in sensors:
+            # Create dictionary with fit results
+            if sensor in self.fit_results:
+                print("There are already fits available!")
+                print("Will overwrite selected ones")
+            else:
+                self.fit_results[sensor] = {}
+            # Select data
+            assoc, assoc_time = self.ys[sensor][step_assoc], self.xs[sensor][step_assoc]
+            dissoc, dissoc_time = self.ys[sensor][step_dissoc], self.xs[sensor][step_dissoc]
+            # Create functions
+            if func=='monoexp':
+                func_assoc = partial(exp_rise_offset_xoff, xoff=np.min(assoc_time))
+                func_dissoc = partial(exp_decay_offset_xoff, xoff=np.min(dissoc_time))
+                guess= (.5, np.max(assoc), 0)
+            if func=='biexp':
+                func_assoc = partial(biexp_rise_offset_xoff, xoff=np.min(assoc_time))
+                func_dissoc = partial(biexp_decay_offset_xoff, xoff=np.min(dissoc_time))
+                guess = (.5, .5, .1, .1, np.max(assoc), 0)
+            # Perform association fitting
+            if which=='assoc' or which=='both':
+                try:
+                    fit_popt_assoc, fit_pcov_assoc = curve_fit(func_assoc, assoc_time, assoc, p0=guess, bounds=(0, np.inf))
+                except:
+                    print("Could not fit association for sensor %i" % (sensor))
+                    pass
+                else:
+                    fitted_assoc = func_assoc(assoc_time, *fit_popt_assoc)
+                    # Write into instance
+                    self.fit_results[sensor]['fit_popt_assoc'] = fit_popt_assoc
+                    self.fit_results[sensor]['fit_pcov_assoc'] = fit_pcov_assoc
+                    self.fit_results[sensor]['fitted_assoc'] = np.vstack((assoc_time, fitted_assoc)).T
+                    self.fit_results[sensor]['r2_assoc'] = r_sq(fitted_assoc, assoc)
+            if which=='dissoc' or which=='both':
+                # Perform dissociation fitting
+                try:
+                    fit_popt_dissoc, fit_pcov_dissoc = curve_fit(func_dissoc, dissoc_time, dissoc, p0=guess, bounds=(0, np.inf))
+                except:
+                    print("Could not fit dissociation for sensor %i" % (sensor))
+                    pass
+                else:
+                    fitted_dissoc = func_dissoc(dissoc_time, *fit_popt_dissoc)
+                    # Write into instance
+                    self.fit_results[sensor]['fit_popt_dissoc'] = fit_popt_dissoc
+                    self.fit_results[sensor]['fit_pcov_dissoc'] = fit_pcov_dissoc
+                    self.fit_results[sensor]['fitted_dissoc'] = np.vstack((dissoc_time, fitted_dissoc)).T
+                    self.fit_results[sensor]['r2_dissoc'] = r_sq(fitted_dissoc, dissoc)
+        return None
+
+    def fit_data(self, sensors=[0], step_assoc=3, step_dissoc=4, func='monoexp', plot=True, order='a', norm=True, export_txt=False, prefix='export', delimiter='\t', precision='%10.3e'):
+        '''
+        Deprecated!!!!
         Fit rise and decay for data
         sensors: List of sensors
         step_assoc: Association step
@@ -477,6 +549,7 @@ class BLI_data:
         delimiter: Delimiter for text file when export_txt is used
         precision: Format for numbers when export_txt is used
         '''
+        print("This function is deprecated! Please use fit_kinetics instead!")
         # Get color cycle
         cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
         # Create instance with fit results if not already there
@@ -645,8 +718,8 @@ class BLI_data:
         popt, pcov = curve_fit(func, concs, rs, p0=initial_guess)
         self.steadystate['fit_results'] = {'popt': popt, 'pcov': pcov}
         # Create x values for fit
-        start = np.log10(np.min(concs)/2)
-        stop = np.log10(np.max(concs)*2)
+        start = np.log10(np.min(concs)/5)
+        stop = np.log10(np.max(concs)*10)
         xs = np.logspace(start, stop, 100)
         ys = func(xs, *popt)
         fit_points = np.array([xs, ys]).T
@@ -659,8 +732,7 @@ class BLI_data:
             ax.set_xlabel('Ligand concentration / M')
             ax.set_ylabel('Response / nm')
             ax.legend()
-        
-        
+        # Return figure and axis handles
         if plot:
             return fig, ax
         else:
