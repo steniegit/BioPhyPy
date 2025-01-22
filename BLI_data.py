@@ -22,11 +22,12 @@ class BLI_data:
     Class to load and fit BLI/SPR/GCI data
     '''
 
-    def __init__(self, folder=''):
+    def __init__(self, folder='', no_neg_concs=True):
         '''
         This initialises the instance
         and loads the frd files in the folder
         folder : folder containing the frd files
+        no_neg_concs: Convert all not-defined conc. (-1) to 0
         '''
         self.folder = folder
         fns = glob.glob(folder + '/*.frd')
@@ -91,9 +92,16 @@ class BLI_data:
         self.xs   = xs
         self.ys   = ys
         self.exp_info = all_expinfo
-        self.step_info = all_stepinfo
+        self.step_info = all_stepinfo  
         # Convert text to floats
         self.convert_to_numbers()
+        # Correct for negative concentrations if chosen
+        if no_neg_concs:
+            for i in range(len(self.step_info)):
+                for conc_name in ['MolarConcentration',\
+                                  'Concentration']:
+                    concs = self.step_info[i][conc_name]
+                    concs[concs<0] = 0
         # Get assay_times, write to instance for more direct access
         self.assay_time = self.step_info[0]['ActualTime']
         self.assay_time_cum = np.cumsum(self.assay_time)
@@ -428,7 +436,7 @@ class BLI_data:
             for step in steps:
                 pos = np.mean((times[step], times[step+1]))
                 if abbrev_step_names:
-                      text = step_text[step].replace('Baseline','BL').replace('Loading','Load.').replace('Association','Assoc.').replace('Dissociation','Dissoc.')
+                      text = step_text[step].replace('Baseline','BL').replace('Loading','Load.').replace('Association','Assoc.').replace('Dissociation','Dissoc.').replace('Quenching','Quench.').replace('Activation','Act.')
                 else:
                       text = step_text[step]
                 ax.text(pos, ylim, text, va='bottom', ha='center')
