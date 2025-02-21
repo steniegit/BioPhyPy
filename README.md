@@ -378,7 +378,7 @@ bli_data.steady_state_fit(step=3, sample_sensors=[0,1,2,3,4,5,6])
 # Save plot
 fig.savefig('./steady-state.pdf')
 ```
-<img src="./readme_files/steady-state.png" width=80% height=80%>
+<img src="./readme_files/steady_state.png" width=50% height=50%>
 
 ## MST_data: Microscale thermophoresis
 * Visualize data and fit affinities
