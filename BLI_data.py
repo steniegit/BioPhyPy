@@ -726,7 +726,12 @@ class BLI_data:
         popt, pcov = curve_fit(func, concs, rs, p0=initial_guess)
         self.steadystate['fit_results'] = {'popt': popt, 'pcov': pcov}
         # Create x values for fit
-        start = np.log10(np.min(concs)/5)
+        if np.min(concs) == 0:
+            # In case one concentration is zero, do not use this
+            # Otherwise it will not work with log space
+            start = np.log10(np.sort(concs)[1]/5)
+        else:
+            start = np.log10(np.min(concs)/5)
         stop = np.log10(np.max(concs)*10)
         xs = np.logspace(start, stop, 100)
         ys = func(xs, *popt)
