@@ -377,11 +377,11 @@ class BLI_data:
             legend_step = steps[0]
         # Define legend entries, for concentrations add units
         if legend in ['Concentration', 'MolarConcentration']:
-            legend_entries = [str(self.step_info[sensor][legend][legend_step]) + '$\,$' + self.step_info[sensor][legend.replace('MolarConcentration','MolarConc') + 'Units'][legend_step] for sensor in range(len(self.fns))]
+            legend_entries = [str(self.step_info[sensor][legend][legend_step]) + "$\\,$" + self.step_info[sensor][legend.replace('MolarConcentration','MolarConc') + 'Units'][legend_step] for sensor in range(len(self.fns))]
         elif legend == 'Concentration_mg/ml':
-            legend_entries = [('%.0e$\,$mg/ml' % self.step_info[sensor][legend][legend_step])  for sensor in range(len(self.fns))]
+            legend_entries = [("%.0e$\\,$mg/ml" % self.step_info[sensor][legend][legend_step])  for sensor in range(len(self.fns))]
         elif legend == 'MolarConcentration_M':
-            legend_entries = [('%.0e$\,$M' % self.step_info[sensor][legend][legend_step])  for sensor in range(len(self.fns))]
+            legend_entries = [("%.0e$\\,$M" % self.step_info[sensor][legend][legend_step])  for sensor in range(len(self.fns))]
         else:
             # Check that entry actually exists
             if legend in self.step_info[0].keys():
@@ -667,13 +667,13 @@ class BLI_data:
                     ylim = ax.get_ylim()
                     # Create string for fit data
                     fit_str = 'Fit association:\n' +\
-                        'k$_\mathrm{obs}$: %.1e 1/s\n' % kobs +\
+                        'k$_\\mathrm{obs}$: %.1e 1/s\n' % kobs +\
                         'R$^2$: %.4f\n\n' % r2_assoc +\
                         'Fit dissociation:\n'  +\
-                        'k$_\mathrm{diss}$: %.1e 1/s\n' % kdiss +\
+                        'k$_\\mathrm{diss}$: %.1e 1/s\n' % kdiss +\
                         'R$^2$: %.4f\n\n' % r2_dissoc +\
                         'Calculated:\n' +\
-                        'k$_\mathrm{on}$: %.1e 1/sM\n' % kon +\
+                        'k$_\\mathrm{on}$: %.1e 1/sM\n' % kon +\
                         'K$_d$: %.1e M' % Kd
                     print(fit_str)
                     text = ax.text(0.95, .93, fit_str,transform=ax.transAxes,
