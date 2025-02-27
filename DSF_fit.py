@@ -40,13 +40,13 @@ def kd_unit(kd):
     '''
     # Adjust labels to mM, muM or nM
     if 1E-9 < kd < 1E-6:
-        kd_label = "%.3g$\,\mathrm{nM}$" % (kd*1E9)
+        kd_label = r"%.3g$\,\mathrm{nM}$" % (kd*1E9)
     elif 1E-6 < kd < 1E-3:
-        kd_label = "%.3g$\,\mu$M" % (kd*1E6)
+        kd_label = r"%.3g$\,\mu$M" % (kd*1E6)
     elif 1E-3 < kd < 1:
-        kd_label = "%.3g$\,\mathrm{mM}$" % (kd*1E3)
+        kd_label = r"%.3g$\,\mathrm{mM}$" % (kd*1E3)
     else:
-        kd_label = "%.1E$\,\mathrm{M}$" % kd
+        kd_label = r"%.1E$\,\mathrm{M}$" % kd
     return kd_label
 
 
@@ -203,6 +203,9 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         else:
             # For Prometheus
             self.load_prometheus(xlsx)
+        # Fill concentrations if empty
+        if len(self.concs) < 1:
+            self.concs = np.arange(self.fluo.shape[1])+1
         # Cut window
         self.crop_temp_window(window=window)
         # Save signal and concs
@@ -587,9 +590,10 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             sort_ind = np.arange(len(self.concs))
         else:
             sort_ind = np.argsort(self.concs)
-        # Save concentrations
-        np.savetxt('%s/sample_concs_%s.txt' % (self.folder, self.which), self.concs[sort_ind])
-        print("Concentrations saved in: %s" % ('%s/sample_concs_%s.txt' % (self.folder , self.which)))
+        if len(self.concs) > 0:
+            # Save concentrations
+            np.savetxt('%s/sample_concs_%s.txt' % (self.folder, self.which), self.concs[sort_ind])
+            print("Concentrations saved in: %s" % ('%s/sample_concs_%s.txt' % (self.folder , self.which)))
         # Save fluo
         np.savetxt(self.folder + '/sample_fluo_%s.txt' % self.which.replace(' ',''), np.hstack((self.temps.reshape(-1, 1), self.fluo[:, sort_ind])),
                    delimiter='\t')
@@ -1186,11 +1190,11 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         lh = []  # Line handles
         for i in range(len(self.concs)):
             if self.concs[i] == 0:
-                temp, = ax.plot(self.temps, self.fluo[:, i], label="%.2f $\mu$M" % (self.concs[i]),
+                temp, = ax.plot(self.temps, self.fluo[:, i], label=r"%.2f $\mu$M" % (self.concs[i]),
                                 alpha=self.plot_alpha, lw=self.plot_lw, color='k')
                 continue
             if prev_conc != self.concs[i]:
-                temp, = ax.plot(self.temps, self.fluo[:, i], label="%.2f $\mu$M" % (self.concs[i]), alpha=self.plot_alpha, lw=self.plot_lw, color=cmap.__next__())
+                temp, = ax.plot(self.temps, self.fluo[:, i], label=r"%.2f $\mu$M" % (self.concs[i]), alpha=self.plot_alpha, lw=self.plot_lw, color=cmap.__next__())
                 lh.append(temp)
                 prev_conc = self.concs[i]
                 # print("New conc %.2f" % self.concs[i])
@@ -1198,7 +1202,7 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
                 ax.plot(self.temps, self.fluo[:, i], alpha=self.plot_alpha, color=temp.get_color(), lw=self.plot_lw)
         # ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), handles=lh, title="Ligand concentration")
         ax.set_xlim([self.temps[0], self.temps[-1]])
-        ax.set_xlabel('Temperature / $^\circ$C')
+        ax.set_xlabel(r'Temperature / $^\circ$C')
         if 'Ratio' in self.which:
             ax.set_ylabel('Fluorescence ratio (350/330)')
         elif '350nm' in self.which:
@@ -1295,20 +1299,20 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             ax.axvline(fitting_params[0, c_index], color='k', linestyle=':')
             if len(fitting_errors) == 0:
                 if show_params:
-                    ax.text(Tm, .5 * (np.max(fluo) + np.min(fluo)), "%.0f$^\circ$C   " % Tm, ha='right')
+                    ax.text(Tm, .5 * (np.max(fluo) + np.min(fluo)), r"%.0f$^\circ$C   " % Tm, ha='right')
             else:
-                # ax.text(Tm, .5*(np.max(fluo) + np.min(fluo)), "%.0f$\pm$%.0f$^\circ$C   " % (Tm, fitting_errors[0,i]), ha='right')
-                # ax.text(Tm, .5*(np.max(fluo) + np.min(fluo)), "%.0f$\pm$%.0f$^\circ$C   " % (Tm, fitting_errors[0,i]), ha='right')
-                text_str = 'T$_m$: %.1f$\pm$%.1f\n' % (par[0], err[0]) + \
-                           '$\Delta$H: %.1f$\pm$%.1f\n' % (par[1], err[1]) + \
-                           'interc$_u$: %.1f$\pm$%.0f%%\n' % (par[2], 100 * np.abs(err[2] / par[2])) + \
-                           'interc$_f$: %.1f$\pm$%.0f%%\n' % (par[3], 100 * np.abs(err[3] / par[3])) + \
-                           'slope$_u$: %.2e$\pm$%.0f%%\n' % (par[4], 100 * np.abs(err[4] / par[4])) + \
-                           'slope$_f$: %.2e$\pm$%.0f%%' % (par[5], 100 * np.abs(err[5] / par[5]))
+                # ax.text(Tm, .5*(np.max(fluo) + np.min(fluo)), r"%.0f$\pm$%.0f$^\circ$C   " % (Tm, fitting_errors[0,i]), ha='right')
+                # ax.text(Tm, .5*(np.max(fluo) + np.min(fluo)), r"%.0f$\pm$%.0f$^\circ$C   " % (Tm, fitting_errors[0,i]), ha='right')
+                text_str = r'T$_m$: %.1f$\pm$%.1f\n' % (par[0], err[0]) + \
+                           r'$\Delta$H: %.1f$\pm$%.1f\n' % (par[1], err[1]) + \
+                           r'interc$_u$: %.1f$\pm$%.0f%%\n' % (par[2], 100 * np.abs(err[2] / par[2])) + \
+                           r'interc$_f$: %.1f$\pm$%.0f%%\n' % (par[3], 100 * np.abs(err[3] / par[3])) + \
+                           r'slope$_u$: %.2e$\pm$%.0f%%\n' % (par[4], 100 * np.abs(err[4] / par[4])) + \
+                           r'slope$_f$: %.2e$\pm$%.0f%%' % (par[5], 100 * np.abs(err[5] / par[5]))
                 # ax.text(Tm*1.08, .504*(np.max(fluo) + np.min(fluo)), text_str, ha='left', va='top')
                 # Add Cp value and error
                 if not np.isnan(err[6]):
-                    text_str += '\n$\Delta C_p$: %.1f$\pm$%.1f' % (par[6], err[6])
+                    text_str += r'\n$\Delta C_p$: %.1f$\pm$%.1f' % (par[6], err[6])
                 # Add R2 to label
                 r2 = r2_score(fluo, fit)
                 text_str += '\n1-R$^2$: %.1e' % (1-r2)
@@ -1324,18 +1328,18 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             # ax.set_yticklabels([])
             if ((c_index + subplot_horiz >= num_datasets)):
                 # print the x-axis label only on the bottom row
-                ax.set_xlabel('Temperature ($^\circ$C)')
+                ax.set_xlabel(r'Temperature ($^\circ$C)')
             else:
                 # take the numbers off all other rows
                 ax.set_xticklabels([])
-            ax.set_title('Ligand conc. %.2f $\mu$M' % (self.concs[c_index] * 1E6))
+            ax.set_title(r'Ligand conc. %.2f $\\mu$M' % (self.concs[c_index] * 1E6))
         if save_fig:
             fig.tight_layout()
             # For simulations, include kd and noise in fn
             if hasattr(self, 'kd') and hasattr(self, 'noise'):
-                fn_plot = '%s/thermal_unfolding_curves_%s_Cp_%.0f_noise_%.0f_kd_%.0E_pconc_%.0E' % (self.folder, self.which.replace(' ',''), self.cp, self.noise, self.kd, self.pconc) 
+                fn_plot = r'%s/thermal_unfolding_curves_%s_Cp_%.0f_noise_%.0f_kd_%.0E_pconc_%.0E' % (self.folder, self.which.replace(' ',''), self.cp, self.noise, self.kd, self.pconc) 
             else:
-                fn_plot = '%s/thermal_unfolding_curves_%s_Cp_%.0f_pconc_%.0E' % (self.folder, self.which.replace(' ',''), self.cp, self.pconc) 
+                fn_plot = r'%s/thermal_unfolding_curves_%s_Cp_%.0f_pconc_%.0E' % (self.folder, self.which.replace(' ',''), self.cp, self.pconc) 
             # Save figure
             for fn_suffix in ['.pdf']: #, '.png']:
                 fig.savefig(fn_plot + fn_suffix)
@@ -1421,9 +1425,9 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             kd_label = kd_unit(kd)
             # Create label
             if show_only_kd:
-                label = "$K_d$=%s$\pm%.0f$" % (kd_label, kd_err / kd * 100)+ '%'
+                label = r"$K_d$=%s$\pm%.0f$" % (kd_label, kd_err / kd * 100)+ '%'
             else:
-                label = "$K_d$=%s$\pm%.0f$" % (kd_label, kd_err / kd * 100) +'%' + '\n$K_U$=%.1E$\pm$%.0f' % (ku, ku_err / ku * 100)+ '%'
+                label = r"$K_d$=%s$\pm%.0f$" % (kd_label, kd_err / kd * 100) +'%' + r'\n$K_U$=%.1E$\pm$%.0f' % (ku, ku_err / ku * 100)+ '%'
             hp, = ax.semilogx(ext_ligand_conc, model(ext_ligand_conc, *params), '-',\
                               label=label, zorder=-10, color='C1')
             # Plot errors
@@ -1437,12 +1441,12 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             # ax.legend(loc='lower left')
             ax.set_xlim([np.min(ext_ligand_conc), np.max(ext_ligand_conc)])
             ax.set_ylim([np.min(fu) - 0.05 * (np.max(fu) - np.min(fu)), np.max(fu) + 0.05 * (np.max(fu) - np.min(fu))])
-            # ax.text(ax.get_xlim()[0], ax.get_ylim()[0], " K$_D$=%.0f$\mu\mathrm{M}\pm%.0f$" % (params[1]/1E-6,err[1]/params[1]*100) +'%', ha='left', va='bottom', fontsize=18)
-            # ax.set_title("K$_D$=%.0f$\mu\mathrm{M}\pm%.0f$%%" % (params[1]/1E-6,err[1]/params[1]*100))
-            ax.set_title("T=%s$^\circ$C" % self.isothermal_ts[t_index])
-            # ax.text(ax.get_xlim()[0], ax.get_ylim()[0], " T=%s$^\circ$C" % self.isothermal_ts[i], ha='left', va='bottom', fontsize=18, fontweight='bold')
+            # ax.text(ax.get_xlim()[0], ax.get_ylim()[0], r" K$_D$=%.0f$\mu\mathrm{M}\pm%.0f$" % (params[1]/1E-6,err[1]/params[1]*100) +'%', ha='left', va='bottom', fontsize=18)
+            # ax.set_title(r"K$_D$=%.0f$\mu\mathrm{M}\pm%.0f$%%" % (params[1]/1E-6,err[1]/params[1]*100))
+            ax.set_title(r"T=%s$^\circ$C" % self.isothermal_ts[t_index])
+            # ax.text(ax.get_xlim()[0], ax.get_ylim()[0], r" T=%s$^\circ$C" % self.isothermal_ts[i], ha='left', va='bottom', fontsize=18, fontweight='bold')
             # ax.text(ax.get_xlim()[0], ax.get_ylim()[0],
-            #        " K$_D$=%.1e$\mu\mathrm{M}\pm%.0f$" % (kd , kd_err / kd * 100) + '%',
+            #        r" K$_D$=%.1e$\mu\mathrm{M}\pm%.0f$" % (kd , kd_err / kd * 100) + '%',
             #        ha='left', va='bottom', fontsize=18)
             ax.legend(loc=leg_loc)
             fig.tight_layout()
@@ -1451,9 +1455,9 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         if save_fig:
             # For simulations, include kd and noise in fn
             if hasattr(self, 'kd') and hasattr(self, 'noise'):
-                fn_plot = '%s/isothermal_fits_%s_Cp_%.0f_noise_%.0f_kd_%.0E_pconc_%.0E' % (self.folder, self.which.replace(' ',''), self.cp, self.noise, self.kd, self.pconc) 
+                fn_plot = r'%s/isothermal_fits_%s_Cp_%.0f_noise_%.0f_kd_%.0E_pconc_%.0E' % (self.folder, self.which.replace(' ',''), self.cp, self.noise, self.kd, self.pconc) 
             else:
-                fn_plot = '%s/isothermal_fits_%s_Cp_%.0f_pconc_%.0E' % (self.folder, self.which.replace(' ',''), self.cp, self.pconc) 
+                fn_plot = r'%s/isothermal_fits_%s_Cp_%.0f_pconc_%.0E' % (self.folder, self.which.replace(' ',''), self.cp, self.pconc) 
             # Save figure
             for fn_suffix in ['.pdf']: #, '.png']:
                 fig.savefig(fn_plot + fn_suffix)
@@ -1644,24 +1648,24 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
 
         # Plot
         ax.semilogx(self.concs, self.tms, 'o', color='k', markerfacecolor='red')  # , label='Exp. melting temperatures')
-        ax.set_ylabel('T$_\mathrm{m}$ / $^\circ$C')
-        ax.set_xlabel('Ligand conc. / M')
+        ax.set_ylabel(r'T$_\mathrm{m}$ / $^\circ$C')
+        ax.set_xlabel(r'Ligand conc. / M')
         if plot_fit:
             fit_params = self.tms_fit['params']
             err = self.tms_fit['errors'] / self.tms_fit['params'] * 100
             if self.tms_fit['fit_type'] == 'single':
-                leg_label = 'Single-site model: \nK$_{d,\mathrm{app}}$=%.2EM$\pm$%.0f%% \n1-R$^2$=%.1E' % (fit_params[0], err[0], 1-self.tms_fit['r2'])
+                leg_label = r'Single-site model: \nK$_{d,\mathrm{app}}$=%.2EM$\pm$%.0f%% \n1-R$^2$=%.1E' % (fit_params[0], err[0], 1-self.tms_fit['r2'])
                 kd_func = self.single_site_kd(self.pconc)
             elif self.tms_fit['fit_type'] == 'hill':
-                leg_label = 'Cooperative model (Hill): \nK$_{d,\mathrm{app}}$=%.2EM$\pm$%.0f%% \nn=%.2f$\pm$%.0f%% \n1-R$^2$=%.1E' % (fit_params[0], err[0], fit_params[1], err[1], 1-self.tms_fit['r2'])
+                leg_label = r'Cooperative model (Hill): \nK$_{d,\mathrm{app}}$=%.2EM$\pm$%.0f%% \nn=%.2f$\pm$%.0f%% \n1-R$^2$=%.1E' % (fit_params[0], err[0], fit_params[1], err[1], 1-self.tms_fit['r2'])
                 kd_func = self.hill_model
             elif self.tms_fit['fit_type'] == 'alt':
                 print("Alternative method")
-                leg_label = 'Alternative model: \nK$_{d,\mathrm{app}}$=%.2EM$\pm$%.0f%% \n$\Delta H_U$=%.1fkcal/molK$\pm$%.0f%% \n1-R$^2$=%.1E' % (fit_params[0], err[0], fit_params[1], err[1], 1-self.tms_fit['r2'])
+                leg_label = r'Alternative model: \nK$_{d,\mathrm{app}}$=%.2EM$\pm$%.0f%% \n$\Delta H_U$=%.1fkcal/molK$\pm$%.0f%% \n1-R$^2$=%.1E' % (fit_params[0], err[0], fit_params[1], err[1], 1-self.tms_fit['r2'])
                 kd_func = self.tm_model1_review_fixTm0(self.tms_fit['Tm0'])
             if simple_legend:
                 kd_label = kd_unit(fit_params[0])
-                leg_label = 'K$_{d,\mathrm{app}}=$%s$\pm$%.0f%%' % (kd_label, err[0])
+                leg_label = r'K$_{d,\mathrm{app}}=$%s$\pm$%.0f%%' % (kd_label, err[0])
             ax.semilogx(concs_int, kd_func(concs_int, *fit_params), \
                         label=leg_label, zorder=-20, lw=self.plot_lw)
             ax.legend()
@@ -2417,9 +2421,9 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
                 if not no_deriv:
                     ax2.axvline(self.tms[i], color=temp.get_color(), linestyle='--', zorder=-20, lw=self.plot_lw)
             if not no_deriv:
-                ax2.set_xlabel('Temperature / $^\circ$C')
+                ax2.set_xlabel(r'Temperature / $^\circ$C')
             else:
-                ax.set_xlabel('Temperature / $^\circ$C')
+                ax.set_xlabel(r'Temperature / $^\circ$C')
         if 'Ratio' in self.which:
             ax.set_ylabel('Fluo. ratio (350/330)')
         elif '350nm' in self.which:
@@ -2452,10 +2456,6 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         # ax.add_patch(frame1)
         # ax.add_patch(frame2)
 
-        # Set up color bar
-        normalize = mcolors.LogNorm(vmin=np.min(self.concs[self.concs > 0]), vmax=np.max(self.concs))  # Or Normalize
-        scalarmappaple = cm.ScalarMappable(norm=normalize, cmap=plt.cm.viridis)
-        scalarmappaple.set_array(self.concs[self.concs > 0])
         if legend:
             if legend_out:
                 ax.legend(bbox_to_anchor=(1.05, 1))
@@ -2469,6 +2469,10 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             #axs[1].legend(loc = 'lower center', bbox_to_anchor = (0,-0.1,1,1), bbox_transform = fig.transFigure ))
         else:
             if colormap:
+                # Set up color bar
+                normalize = mcolors.LogNorm(vmin=np.min(self.concs[self.concs > 0]), vmax=np.max(self.concs))  # Or Normalize
+                scalarmappaple = cm.ScalarMappable(norm=normalize, cmap=plt.cm.viridis)
+                scalarmappaple.set_array(self.concs[self.concs > 0])
                 # Show color bar
                 cbar = plt.colorbar(scalarmappaple, ax=ax)
                 cbar.set_label('Ligand conc. / M', rotation=270)
