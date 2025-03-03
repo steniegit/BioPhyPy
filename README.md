@@ -299,8 +299,7 @@ bli_data.smooth(window_length=21)
 
 # Plot signal for binding
 fig, ax = bli_data.plot(legend='SampleID', legend_step=3, abbrev_step_names=True, steps=[0,1,2,3,4], sensors=range(1,8))
-# Save plot### MST_data
-* Visualize data and fit affinities
+# Save plot
 fig.savefig('./bli_plot.pdf')
 ```
 <img src="./readme_files/bli_plot.png" width=50% height=50%>
