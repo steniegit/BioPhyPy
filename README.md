@@ -190,6 +190,7 @@ import matplotlib.pyplot as plt
 sys.path.append("../")
 # Load python class
 from BioPhyPy import MP_data
+import matplotlib.pyplot as plt
 
 # Adjust font size
 fs = 18
@@ -230,6 +231,7 @@ sys.path.append("../")
 import numpy as np
 # Load python class
 from BioPhyPy import MP_data
+import matplotlib.pyplot as plt
 
 # Font size
 fs = 18
@@ -279,6 +281,7 @@ import sys
 sys.path.append('../')
 # Load module
 from BioPhyPy import BLI_data
+import matplotlib
 
 # Font size
 fs = 12
@@ -312,6 +315,7 @@ import sys
 # Add parental folder that contains BioPhysPy to path
 sys.path.append('../')
 from BioPhyPy import BLI_data
+import matplotlib
 
 # Font size
 fs = 12
@@ -350,6 +354,7 @@ import sys
 # Add parental folder that contains BioPhysPy to path
 sys.path.append('../')
 from BioPhyPy import BLI_data
+import matplotlib
 
 # Font size
 fs = 12
@@ -392,6 +397,7 @@ import matplotlib.pyplot as plt
 sys.path.append('../')
 # Load module
 from BioPhyPy import MST_data
+import matplotlib.pyplot as plt
 
 # Folder
 fn = './mst_example.xlsx'
@@ -427,6 +433,7 @@ import matplotlib.pyplot as plt
 sys.path.append('../')
 # Load module
 from BioPhyPy import MST_data
+import matplotlib.pyplot as plt
 
 # Folder
 fn = './2405_mst_example/mst_example.xlsx'
