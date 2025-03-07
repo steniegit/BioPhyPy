@@ -1333,6 +1333,7 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
                 # take the numbers off all other rows
                 ax.set_xticklabels([])
             ax.set_title(r'Ligand conc. %.2f $\\mu$M' % (self.concs[c_index] * 1E6))
+            ax.set_title(rf'Ligand conc. {self.concs[c_index] * 1E6:.2f} $\mu$M')
         if save_fig:
             fig.tight_layout()
             # For simulations, include kd and noise in fn
