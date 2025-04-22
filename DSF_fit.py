@@ -481,6 +481,18 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             self.sample_comment = self.sample_comment[sort_ind]
         if hasattr(self, 'fluo_deriv'):
             self.fluo_deriv = self.fluo_deriv[:,sort_ind]
+        if hasattr(self, 'local_fit_params'):
+            self.local_fit_params = self.local_fit_params[:, sort_ind]
+        if hasattr(self, 'local_fit_errors'):
+            self.local_fit_errors = self.local_fit_errors[:, sort_ind]
+        if hasattr(self, 'global_fit_params'):
+            self.global_fit_params = self.global_fit_params[:, sort_ind]
+        if hasattr(self, 'global_fit_errors'):
+            self.global_fit_errors = self.global_fit_errors[:, sort_ind]
+        if hasattr(self, 'global_fit_cp_params'):
+            self.global_fit_cp_params = self.global_fit_cp_params[:, sort_ind]
+        if hasattr(self, 'global_fit_cp_errors'):
+            self.global_fit_cp_errors = self.global_fit_cp_errors[:, sort_ind]
         return None
 
     def merge_datasets(self, dataset):
