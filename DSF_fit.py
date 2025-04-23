@@ -49,6 +49,23 @@ def kd_unit(kd):
         kd_label = r"%.1E$\,\mathrm{M}$" % kd
     return kd_label
 
+# Function for units
+def unit_converter(unit):
+    '''
+    Converts unit strings into molar concentrations
+    '''
+    if unit == 'nM':
+        return 10**-9
+    elif unit == 'uM':
+        return 10**-6
+    elif unit == 'mM':
+        return 10**-3
+    elif unit == 'M':
+        return 1
+    else:
+        print("Could not convert unit: %s" % unit)
+        return None
+
 
 class DSF_binding:
     '''
@@ -430,7 +447,57 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
         self.inds_in = np.ones(self.fluo.shape[1])==1
         return None
 
-    
+    def load_csv(self, fn=''):
+        '''
+        This function loads csv data with
+        temperatures in every 2nd column
+        '''
+        # Load file
+        data = pd.read_csv(fn, header=0, delimiter=',')
+        # Check that all temperature columns are identical
+        temps = data.iloc[:,::2]
+        for i in range(temps.shape[1]):
+            if not temps.iloc[:,0].equals(temps.iloc[:,i]):
+                print("Mismatch in temperatures detected! Aborting loading")
+                return None
+        # Only read the fluorescence data
+        data_f = data.iloc[:,1::2]
+        data_f.insert(0,'Temperatures', temps.iloc[:,0])
+
+        # Get concentrations from headers
+        protein_conc, ligand_conc = [], []
+        for header in data.columns[::2]:
+            header = header.split()
+            # Ligand concentration
+            if header[1] == 'ligand':
+                lig = header[0]
+            elif header[0] == 'ligand':
+                lig = header[1]
+            # Convert to number
+            ligand_conc.append(float(lig[:-2])*unit_converter(lig[-2:]))
+            # Protein conc
+            if header[3] == 'protein':
+                prot = header[2]
+            elif header[2] == 'protein':
+                prot = header[3]
+            protein_conc.append(float(prot[:-2])*unit_converter(prot[-2:]))
+        # Check that protein conc. is constant
+        if np.sum(np.diff(protein_conc)) < np.finfo('float').eps:
+            pconc = protein_conc[0]
+            print("Protein concentration: %.eM" % pconc)
+        else:
+            pconc = None
+            print("Protein concentrations do not match!!!")
+        # Load data into instance
+        self.temps = np.array(data_f['Temperatures'])
+        self.fluo = np.array(data_f.iloc[:,1:])
+        self.concs = np.array(ligand_conc)
+        self.sample_ID = np.arange(len(self.concs))
+        self.sample_comment = self.capillary_no = self.sample_ID
+        # Protein concentration
+        self.pconc = pconc
+        return None
+            
     def interpolate_data(self, factor=10):
         '''
         Interpolate data to reduce number of points, e.g for datasets 
@@ -1315,12 +1382,12 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             else:
                 # ax.text(Tm, .5*(np.max(fluo) + np.min(fluo)), r"%.0f$\pm$%.0f$^\circ$C   " % (Tm, fitting_errors[0,i]), ha='right')
                 # ax.text(Tm, .5*(np.max(fluo) + np.min(fluo)), r"%.0f$\pm$%.0f$^\circ$C   " % (Tm, fitting_errors[0,i]), ha='right')
-                text_str = r'T$_m$: %.1f$\pm$%.1f\n' % (par[0], err[0]) + \
-                           r'$\Delta$H: %.1f$\pm$%.1f\n' % (par[1], err[1]) + \
-                           r'interc$_u$: %.1f$\pm$%.0f%%\n' % (par[2], 100 * np.abs(err[2] / par[2])) + \
-                           r'interc$_f$: %.1f$\pm$%.0f%%\n' % (par[3], 100 * np.abs(err[3] / par[3])) + \
-                           r'slope$_u$: %.2e$\pm$%.0f%%\n' % (par[4], 100 * np.abs(err[4] / par[4])) + \
-                           r'slope$_f$: %.2e$\pm$%.0f%%' % (par[5], 100 * np.abs(err[5] / par[5]))
+                text_str = 'T$_m$: %.1f$\pm$%.1f\n' % (par[0], err[0]) + \
+                           '$\Delta$H: %.1f$\pm$%.1f\n' % (par[1], err[1]) + \
+                           'interc$_u$: %.1f$\pm$%.0f%%\n' % (par[2], 100 * np.abs(err[2] / par[2])) + \
+                           'interc$_f$: %.1f$\pm$%.0f%%\n' % (par[3], 100 * np.abs(err[3] / par[3])) + \
+                           'slope$_u$: %.2e$\pm$%.0f%%\n' % (par[4], 100 * np.abs(err[4] / par[4])) + \
+                           'slope$_f$: %.2e$\pm$%.0f%%' % (par[5], 100 * np.abs(err[5] / par[5]))
                 # ax.text(Tm*1.08, .504*(np.max(fluo) + np.min(fluo)), text_str, ha='left', va='top')
                 # Add Cp value and error
                 if not np.isnan(err[6]):
@@ -1344,7 +1411,7 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             else:
                 # take the numbers off all other rows
                 ax.set_xticklabels([])
-            ax.set_title(r'Ligand conc. %.2f $\\mu$M' % (self.concs[c_index] * 1E6))
+            ax.set_title(r'Ligand conc. %.2f $\mu$M' % (self.concs[c_index] * 1E6))
             ax.set_title(rf'Ligand conc. {self.concs[c_index] * 1E6:.2f} $\mu$M')
         if save_fig:
             fig.tight_layout()
@@ -1667,14 +1734,14 @@ Please also acknowledge the SPC core facility at EMBL Hamburg\n")
             fit_params = self.tms_fit['params']
             err = self.tms_fit['errors'] / self.tms_fit['params'] * 100
             if self.tms_fit['fit_type'] == 'single':
-                leg_label = r'Single-site model: \nK$_{d,\mathrm{app}}$=%.2EM$\pm$%.0f%% \n1-R$^2$=%.1E' % (fit_params[0], err[0], 1-self.tms_fit['r2'])
+                leg_label = 'Single-site model: \nK$_{d,\mathrm{app}}$=%.2EM$\pm$%.0f%% \n1-R$^2$=%.1E' % (fit_params[0], err[0], 1-self.tms_fit['r2'])
                 kd_func = self.single_site_kd(self.pconc)
             elif self.tms_fit['fit_type'] == 'hill':
-                leg_label = r'Cooperative model (Hill): \nK$_{d,\mathrm{app}}$=%.2EM$\pm$%.0f%% \nn=%.2f$\pm$%.0f%% \n1-R$^2$=%.1E' % (fit_params[0], err[0], fit_params[1], err[1], 1-self.tms_fit['r2'])
+                leg_label = 'Cooperative model (Hill): \nK$_{d,\mathrm{app}}$=%.2EM$\pm$%.0f%% \nn=%.2f$\pm$%.0f%% \n1-R$^2$=%.1E' % (fit_params[0], err[0], fit_params[1], err[1], 1-self.tms_fit['r2'])
                 kd_func = self.hill_model
             elif self.tms_fit['fit_type'] == 'alt':
                 print("Alternative method")
-                leg_label = r'Alternative model: \nK$_{d,\mathrm{app}}$=%.2EM$\pm$%.0f%% \n$\Delta H_U$=%.1fkcal/molK$\pm$%.0f%% \n1-R$^2$=%.1E' % (fit_params[0], err[0], fit_params[1], err[1], 1-self.tms_fit['r2'])
+                leg_label = 'T$_m$ model: \nK$_{d,\mathrm{app}}$=%.2EM$\pm$%.0f%% \n$\Delta H_U$=%.1fkcal/molK$\pm$%.0f%% \n1-R$^2$=%.1E' % (fit_params[0], err[0], fit_params[1], err[1], 1-self.tms_fit['r2'])
                 kd_func = self.tm_model1_review_fixTm0(self.tms_fit['Tm0'])
             if simple_legend:
                 kd_label = kd_unit(fit_params[0])
