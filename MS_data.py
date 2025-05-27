@@ -5,6 +5,8 @@ Mass spec data
 from .helpers import *
 import pandas as pd
 import numpy as np
+import base64
+from bs4 import BeautifulSoup
   
 class MS_data():
     ''' 
@@ -25,20 +27,52 @@ class MS_data():
         self.mfact = mfact
         self.peaks = []
         # Load data and do outlier rejection
-        self.load()
+        if fn.endswith('.txt'):
+            self.load_txt()
+        elif fn.endswith('.mzXML'):
+            self.load_mzXML()
+        else:
+            print("Unrecognized file format!")
+            return None
         # Safety copy of raw data (not affected by data processing)
         self.raw = copy.deepcopy(self.spec)
         # Normalization flag
         self.norm = False
         return None
 
-    def load(self, verbose=False):
+    def load_txt(self, verbose=False):
         '''
-        This function loads the file and
+        This function loads a text file and
         interpolates the points (for later smoothing)
         So far there is no error check done
         '''
         spec = np.genfromtxt(self.fn)
+        spec[:,0] /= self.mfact
+        # Interpolate for equal spacing
+        step = np.min(np.diff(spec[:,0]))
+        xi = np.arange(np.min(spec[:,0]), np.max(spec[:,0])+step, step) 
+        yi = np.interp(xi, spec[:,0], spec[:,1])
+        self.spec = np.vstack([xi, yi]).T
+        return None
+
+    def load_mzXML(self, verbose=False):
+        '''
+        This function loads the xml file including metadata
+        It interpolates the points (for later smoothing)
+        So far there is no error check done
+        ## To do: Load metadata ##
+        '''
+        # Read xml
+        with open(self.fn, 'r') as f:
+            data = f.read()
+        # Pass the stored data into parser
+        bs_data = BeautifulSoup(data, "xml")
+        # Find all tags
+        all_tags = {tag.name for tag in bs_data.find_all(True)}
+        # Convert binary from peaks to array
+        raw_text = bs_data.find('peaks').string.strip()
+        binary_peaks = base64.b64decode(raw_text)
+        spec = copy.deepcopy(np.frombuffer(binary_peaks, dtype='>f4').reshape(-1,2))
         spec[:,0] /= self.mfact
         # Interpolate for equal spacing
         step = np.min(np.diff(spec[:,0]))
